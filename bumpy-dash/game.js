@@ -963,6 +963,12 @@ document.addEventListener('keyup', (e) => {
 
 canvas.addEventListener('click', jump);
 
+// Mobile touch support - immediate response without delay
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // Prevent 300ms click delay on mobile
+    jump();
+}, { passive: false });
+
 document.getElementById('restartBtn').addEventListener('click', () => {
     startGame();
 });

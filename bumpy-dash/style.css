@@ -91,6 +91,10 @@ body {
     display: block;
     margin: 0 auto;
     cursor: pointer;
+    touch-action: manipulation; /* Prevent touch delays on mobile */
+    user-select: none; /* Prevent text selection on touch */
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
 }
 
 .controls {
@@ -115,6 +119,10 @@ body {
     font-size: 1.1em;
     border-radius: 50px;
     cursor: pointer;
+    touch-action: manipulation; /* Prevent touch delays on mobile */
+    user-select: none; /* Prevent text selection on touch */
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
     transition: transform 0.2s, box-shadow 0.2s;
     font-weight: bold;
 }
@@ -188,6 +196,10 @@ body {
     font-size: 1.2em;
     border-radius: 15px;
     cursor: pointer;
+    touch-action: manipulation; /* Prevent touch delays on mobile */
+    user-select: none; /* Prevent text selection on touch */
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
     transition: transform 0.2s, box-shadow 0.2s;
     font-weight: bold;
 }
