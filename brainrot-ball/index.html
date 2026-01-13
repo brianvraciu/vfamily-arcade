@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Brainrot Ball 🍕 - Italian Pinball Chaos</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Phaser 3 CDN with Matter.js physics -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+</head>
+<body>
+    <!-- Game Container -->
+    <div id="game-wrapper">
+        <div id="game-container"></div>
+    </div>
+
+    <!-- UI Overlays -->
+    <div id="ui-overlay">
+        <!-- Score Display -->
+        <div id="score-panel">
+            <div class="stat-item">
+                <span class="stat-label">AURA</span>
+                <span id="aura-display" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">MULTIPLIER</span>
+                <span id="multiplier-display" class="stat-value">1x</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">BALLS</span>
+                <span id="balls-display" class="stat-value">3</span>
+            </div>
+        </div>
+
+        <!-- FANUM TAX Alert -->
+        <div id="fanum-tax-alert" class="hidden">
+            <div class="alert-content">
+                <h2>🚨 FANUM TAX 🚨</h2>
+                <p>HIT THE VAULT IN <span id="tax-countdown">5</span>s!</p>
+            </div>
+        </div>
+
+        <!-- Card Unlock Notification -->
+        <div id="card-notification" class="hidden">
+            <div class="card-unlock-anim">
+                <h3>NEW CARD UNLOCKED!</h3>
+                <div id="new-card-display"></div>
+            </div>
+        </div>
+
+        <!-- Controls Hint -->
+        <div id="controls-hint">
+            <div class="hint-desktop">
+                <span>⬅️ Left Flipper</span>
+                <span>SPACE Launch</span>
+                <span>Right Flipper ➡️</span>
+            </div>
+            <div class="hint-mobile">
+                <span>TAP LEFT/RIGHT FOR FLIPPERS</span>
+            </div>
+        </div>
+
+        <!-- Pause Button -->
+        <button id="pause-btn" class="icon-btn">⏸️</button>
+        <button id="sound-btn" class="icon-btn">🔊</button>
+        <button id="inventory-btn" class="icon-btn">🎴</button>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="menu-overlay hidden">
+        <div class="menu-content">
+            <h2>PAUSED</h2>
+            <button class="menu-btn" id="resume-btn">Resume</button>
+            <button class="menu-btn" id="restart-btn">Restart</button>
+            <button class="menu-btn" id="menu-main-btn">Main Menu</button>
+        </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="menu-overlay">
+        <div class="menu-content main-menu-content">
+            <h1 class="game-title">🍕 BRAINROT BALL 🍝</h1>
+            <p class="game-subtitle">Italian Pinball Chaos</p>
+
+            <button class="menu-btn large-btn" id="start-game-btn">START GAME</button>
+            <button class="menu-btn" id="view-inventory-btn">View Cards</button>
+
+            <div class="high-score-display">
+                <span>HIGH SCORE:</span>
+                <span id="high-score-value">0</span>
+            </div>
+
+            <div class="controls-info">
+                <h3>CONTROLS</h3>
+                <p><strong>PC:</strong> Arrow Keys (Flippers) | Space (Launch)</p>
+                <p><strong>Touch:</strong> Tap Sides (Flippers) | Swipe Down (Launch)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-menu" class="menu-overlay hidden">
+        <div class="menu-content">
+            <h2>GAME OVER</h2>
+            <div class="final-stats">
+                <p>FINAL AURA: <span id="final-aura">0</span></p>
+                <p>CARDS COLLECTED: <span id="final-cards">0</span></p>
+                <p id="new-high-score" class="hidden">🎉 NEW HIGH SCORE! 🎉</p>
+            </div>
+            <button class="menu-btn" id="play-again-btn">Play Again</button>
+            <button class="menu-btn" id="game-over-main-btn">Main Menu</button>
+        </div>
+    </div>
+
+    <!-- Card Inventory -->
+    <div id="inventory-menu" class="menu-overlay hidden">
+        <div class="menu-content inventory-content">
+            <h2>THE INVENTORY 🎴</h2>
+            <button class="close-btn" id="close-inventory-btn">✕</button>
+
+            <div class="collection-stats">
+                <p>Collected: <span id="collection-count">0</span> / 12</p>
+            </div>
+
+            <div id="card-grid" class="card-grid">
+                <!-- Cards will be dynamically generated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Script -->
+    <script src="game.js"></script>
+</body>
+</html>
