@@ -17,7 +17,10 @@ const config = {
                 showBody: true,
                 showStaticBody: true
             },
-            enableSleeping: false
+            enableSleeping: false,
+            positionIterations: 10,
+            velocityIterations: 8,
+            constraintIterations: 4
         }
     },
     scene: {
@@ -73,10 +76,12 @@ let game;
 let currentScene;
 let ball;
 let leftFlipper, rightFlipper;
+let leftFlipperConstraint, rightFlipperConstraint;
 let bumpers = [];
 let targets = [];
 let vault;
-let plunger;
+let plungerPower = 0;
+let chargingPlunger = false;
 let ballLaunched = false;
 let canLaunch = true;
 
@@ -171,198 +176,141 @@ function preload() {
 function create() {
     const scene = this;
     currentScene = scene;
+    const { width, height } = scene.cameras.main;
 
     // Initialize sound
     if (!sounds.context) {
         sounds.init();
     }
 
-    // Create pinball table boundaries
-    createTable(scene);
-
-    // Create flippers
-    createFlippers(scene);
-
-    // Create bumpers
-    createBumpers(scene);
-
-    // Create targets
-    createTargets(scene);
-
-    // Create vault (FANUM TAX target)
-    createVault(scene);
-
-    // Create plunger
-    createPlunger(scene);
-
-    // Create ball
-    createBall(scene);
-
-    // Setup controls
-    setupControls(scene);
-
-    // Setup collision events
-    setupCollisions(scene);
-
-    // Update UI
-    updateUI();
-
-    // Hide main menu, show game
-    ui.mainMenu.classList.add('hidden');
-    ui.controlsHint.classList.remove('hidden');
-}
-
-// Phaser Update
-function update(time, delta) {
-    // Update multiplier timer
-    if (gameState.multiplierTimer > 0) {
-        gameState.multiplierTimer -= delta;
-        if (gameState.multiplierTimer <= 0) {
-            gameState.multiplier = Math.max(1, gameState.multiplier - 1);
-            updateUI();
-        }
-    }
-
-    // Update FANUM TAX timer
-    if (gameState.fanumTaxActive) {
-        gameState.fanumTaxTimer -= delta;
-        ui.taxCountdown.textContent = Math.ceil(gameState.fanumTaxTimer / 1000);
-
-        if (gameState.fanumTaxTimer <= 0) {
-            deactivateFanumTax();
-        }
-    }
-
-    // Check if ball is out of bounds
-    if (ball && ball.y > 1050) {
-        handleBallLost();
-    }
-}
-
-// Create Table
-function createTable(scene) {
-    const { width, height } = scene.cameras.main;
-
-    // Outer walls
-    scene.matter.add.rectangle(width / 2, -25, width, 50, { isStatic: true, label: 'wall' });
-    scene.matter.add.rectangle(-25, height / 2, 50, height, { isStatic: true, label: 'wall' });
-
-    // Right wall (shorter to allow plunger lane)
-    scene.matter.add.rectangle(width - 90, height / 2 - 100, 20, height - 200, { isStatic: true, label: 'wall' });
-
-    // Plunger lane walls (right side channel)
-    scene.matter.add.rectangle(width - 30, height / 2, 20, height, { isStatic: true, label: 'wall' });
-
-    // Bottom separator between plunger lane and play field
-    scene.matter.add.rectangle(width - 60, height - 80, 80, 20, { isStatic: true, label: 'wall' });
-
-    // Slanted sides at bottom (outlanes)
-    const leftSlant = scene.matter.add.rectangle(120, height - 80, 180, 20, {
+    // ===== CREATE WORLD BOUNDARIES =====
+    // Top wall
+    scene.matter.add.rectangle(width / 2, -25, width, 50, {
         isStatic: true,
-        angle: 0.5,
-        label: 'wall'
+        label: 'wall',
+        friction: 0.1
     });
 
-    const rightSlant = scene.matter.add.rectangle(width - 200, height - 80, 180, 20, {
+    // Left wall
+    scene.matter.add.rectangle(-25, height / 2, 50, height, {
         isStatic: true,
-        angle: -0.5,
-        label: 'wall'
+        label: 'wall',
+        friction: 0.1
     });
 
-    // Draw walls
-    const graphics = scene.add.graphics();
-    graphics.lineStyle(5, 0xFFD700);
-    graphics.strokeRect(0, 0, width - 60, height - 50);
-    graphics.strokeRect(width - 60, 0, 60, height);
-}
+    // Right main wall (stops at plunger lane)
+    scene.matter.add.rectangle(width - 90, height / 2 - 150, 20, height - 300, {
+        isStatic: true,
+        label: 'wall',
+        friction: 0.1
+    });
 
-// Create Flippers
-function createFlippers(scene) {
-    const { width, height } = scene.cameras.main;
+    // Plunger lane right wall
+    scene.matter.add.rectangle(width - 15, height / 2, 10, height, {
+        isStatic: true,
+        label: 'wall',
+        friction: 0.1
+    });
 
-    // Flipper specs: Rest angle pointing DOWN, swing up 50° (standard pinball)
-    // More extreme downward angle for proper pinball feel
-    const restAngleLeft = -0.7; // ~-40 degrees - pointing down-right
-    const maxAngleLeft = 0.2; // ~11 degrees - pointing slightly up
-    const restAngleRight = 0.7; // ~40 degrees - pointing down-left
-    const maxAngleRight = -0.2; // ~-11 degrees - pointing slightly up
+    // Separator between playfield and plunger lane (bottom)
+    scene.matter.add.rectangle(width - 60, height - 80, 80, 20, {
+        isStatic: true,
+        label: 'wall',
+        friction: 0.1
+    });
 
-    // Left flipper
-    leftFlipper = scene.matter.add.rectangle(240, height - 130, 100, 20, {
+    // Angled outlane walls at bottom
+    const leftOutlane = scene.matter.add.rectangle(120, height - 80, 200, 20, {
+        isStatic: true,
+        angle: 0.6,
+        label: 'wall',
+        friction: 0.3
+    });
+
+    const rightOutlane = scene.matter.add.rectangle(width - 200, height - 80, 200, 20, {
+        isStatic: true,
+        angle: -0.6,
+        label: 'wall',
+        friction: 0.3
+    });
+
+    // ===== CREATE FLIPPERS WITH PROPER CONSTRAINTS =====
+    const flipperWidth = 100;
+    const flipperHeight = 20;
+    const flipperY = height - 150;
+
+    // LEFT FLIPPER
+    const leftFlipperX = 220;
+    const leftPivotX = 180;
+    const leftPivotY = flipperY;
+
+    leftFlipper = scene.matter.add.rectangle(leftFlipperX, flipperY, flipperWidth, flipperHeight, {
         chamfer: { radius: 10 },
         label: 'flipper',
-        angle: restAngleLeft,
-        restitution: 0.8,
-        friction: 0.5
+        density: 0.001,
+        friction: 0.8,
+        restitution: 0.5,
+        collisionFilter: {
+            category: 1,
+            mask: -1
+        }
     });
-    leftFlipper.isActive = false;
-    leftFlipper.restAngle = restAngleLeft;
-    leftFlipper.maxAngle = maxAngleLeft;
 
-    const leftPivot = scene.matter.add.circle(200, height - 130, 5, { isStatic: true });
-    scene.matter.add.constraint(leftFlipper, leftPivot, 0, 1, {
+    // Pin left flipper with constraint
+    const leftPivot = scene.matter.add.circle(leftPivotX, leftPivotY, 5, {
+        isStatic: true
+    });
+
+    leftFlipperConstraint = scene.matter.add.constraint(leftFlipper, leftPivot, 0, 0.9, {
         pointA: { x: -40, y: 0 },
-        stiffness: 1
+        stiffness: 0.9,
+        damping: 0.1
     });
 
-    // Right flipper
-    rightFlipper = scene.matter.add.rectangle(560, height - 130, 100, 20, {
+    // Set angle limits on left flipper
+    leftFlipper.minAngle = -0.8; // ~-45 degrees (down)
+    leftFlipper.maxAngle = 0.3;  // ~17 degrees (up)
+    leftFlipper.restAngle = -0.8;
+    leftFlipper.activeAngle = 0.3;
+    scene.matter.body.setAngle(leftFlipper, leftFlipper.restAngle);
+
+    // RIGHT FLIPPER
+    const rightFlipperX = 580;
+    const rightPivotX = 620;
+    const rightPivotY = flipperY;
+
+    rightFlipper = scene.matter.add.rectangle(rightFlipperX, flipperY, flipperWidth, flipperHeight, {
         chamfer: { radius: 10 },
         label: 'flipper',
-        angle: restAngleRight,
-        restitution: 0.8,
-        friction: 0.5
+        density: 0.001,
+        friction: 0.8,
+        restitution: 0.5,
+        collisionFilter: {
+            category: 1,
+            mask: -1
+        }
     });
-    rightFlipper.isActive = false;
-    rightFlipper.restAngle = restAngleRight;
-    rightFlipper.maxAngle = maxAngleRight;
 
-    const rightPivot = scene.matter.add.circle(600, height - 130, 5, { isStatic: true });
-    scene.matter.add.constraint(rightFlipper, rightPivot, 0, 1, {
+    // Pin right flipper with constraint
+    const rightPivot = scene.matter.add.circle(rightPivotX, rightPivotY, 5, {
+        isStatic: true
+    });
+
+    rightFlipperConstraint = scene.matter.add.constraint(rightFlipper, rightPivot, 0, 0.9, {
         pointA: { x: 40, y: 0 },
-        stiffness: 1
+        stiffness: 0.9,
+        damping: 0.1
     });
 
-    // Flipper physics update - force angles to stay in bounds
-    scene.matter.world.on('beforeupdate', () => {
-        // Left flipper control
-        if (leftFlipper.isActive) {
-            scene.matter.body.setAngularVelocity(leftFlipper, 0.5);
-            // Clamp to max angle
-            if (leftFlipper.angle >= leftFlipper.maxAngle) {
-                scene.matter.body.setAngle(leftFlipper, leftFlipper.maxAngle);
-                scene.matter.body.setAngularVelocity(leftFlipper, 0);
-            }
-        } else {
-            scene.matter.body.setAngularVelocity(leftFlipper, -0.4);
-            // Clamp to rest angle
-            if (leftFlipper.angle <= leftFlipper.restAngle) {
-                scene.matter.body.setAngle(leftFlipper, leftFlipper.restAngle);
-                scene.matter.body.setAngularVelocity(leftFlipper, 0);
-            }
-        }
+    // Set angle limits on right flipper
+    rightFlipper.minAngle = -0.3; // ~-17 degrees (up)
+    rightFlipper.maxAngle = 0.8;  // ~45 degrees (down)
+    rightFlipper.restAngle = 0.8;
+    rightFlipper.activeAngle = -0.3;
+    scene.matter.body.setAngle(rightFlipper, rightFlipper.restAngle);
 
-        // Right flipper control
-        if (rightFlipper.isActive) {
-            scene.matter.body.setAngularVelocity(rightFlipper, -0.5);
-            // Clamp to max angle
-            if (rightFlipper.angle <= rightFlipper.maxAngle) {
-                scene.matter.body.setAngle(rightFlipper, rightFlipper.maxAngle);
-                scene.matter.body.setAngularVelocity(rightFlipper, 0);
-            }
-        } else {
-            scene.matter.body.setAngularVelocity(rightFlipper, 0.4);
-            // Clamp to rest angle
-            if (rightFlipper.angle >= rightFlipper.restAngle) {
-                scene.matter.body.setAngle(rightFlipper, rightFlipper.restAngle);
-                scene.matter.body.setAngularVelocity(rightFlipper, 0);
-            }
-        }
-    });
-}
-
-// Create Bumpers
-function createBumpers(scene) {
+    // ===== CREATE BUMPERS =====
+    bumpers = [];
     const bumperPositions = [
         { x: 250, y: 250 },
         { x: 450, y: 250 },
@@ -374,20 +322,14 @@ function createBumpers(scene) {
     bumperPositions.forEach(pos => {
         const bumper = scene.matter.add.circle(pos.x, pos.y, 40, {
             isStatic: true,
-            restitution: 1.5,
+            restitution: 1.8,
             label: 'bumper'
         });
         bumpers.push(bumper);
-
-        // Draw bumper
-        const graphics = scene.add.graphics();
-        graphics.fillStyle(0xFF00FF, 1);
-        graphics.fillCircle(pos.x, pos.y, 40);
     });
-}
 
-// Create Targets
-function createTargets(scene) {
+    // ===== CREATE TARGETS =====
+    targets = [];
     const targetPositions = [
         { x: 120, y: 180 },
         { x: 580, y: 180 },
@@ -400,63 +342,120 @@ function createTargets(scene) {
         const target = scene.matter.add.rectangle(pos.x, pos.y, 60, 20, {
             isStatic: true,
             label: 'target',
-            targetId: index
+            targetId: index,
+            restitution: 0.5
         });
         targets.push(target);
-
-        // Draw target
-        const graphics = scene.add.graphics();
-        graphics.fillStyle(0x00FFFF, 1);
-        graphics.fillRect(pos.x - 30, pos.y - 10, 60, 20);
     });
-}
 
-// Create Vault (FANUM TAX)
-function createVault(scene) {
-    vault = scene.matter.add.rectangle(400, 50, 80, 40, {
+    // ===== CREATE VAULT (FANUM TAX) =====
+    vault = scene.matter.add.rectangle(350, 50, 80, 40, {
         isStatic: true,
-        label: 'vault'
+        label: 'vault',
+        restitution: 0.5
     });
 
-    // Draw vault
-    const graphics = scene.add.graphics();
-    graphics.fillStyle(0xFFD700, 1);
-    graphics.fillRect(360, 30, 80, 40);
-
-    const text = scene.add.text(400, 50, '💰', {
-        fontSize: '32px',
-        align: 'center'
-    });
-    text.setOrigin(0.5);
-}
-
-// Create Plunger
-function createPlunger(scene) {
-    const { width, height } = scene.cameras.main;
-
-    // Plunger at bottom of launch lane - start as static so it doesn't fall
-    plunger = scene.matter.add.rectangle(width - 45, height - 80, 30, 60, {
-        isStatic: true, // Static until launch
-        label: 'plunger',
-        density: 0.05
-    });
-}
-
-// Create Ball
-function createBall(scene) {
-    const { width, height } = scene.cameras.main;
-
-    // Ball starts in plunger lane (right side)
+    // ===== CREATE BALL =====
     ball = scene.matter.add.circle(width - 45, height - 200, 15, {
-        restitution: 0.8,
-        friction: 0.05,
-        density: 0.001,
+        restitution: 0.7,
+        friction: 0.01,
+        frictionAir: 0.005,
+        density: 0.002,
         label: 'ball',
-        frictionAir: 0.01
+        collisionFilter: {
+            category: 1,
+            mask: -1
+        }
     });
 
     ballLaunched = false;
     canLaunch = true;
+    plungerPower = 0;
+    chargingPlunger = false;
+
+    // ===== SETUP CONTROLS =====
+    setupControls(scene);
+
+    // ===== SETUP COLLISIONS =====
+    setupCollisions(scene);
+
+    // Update UI
+    updateUI();
+
+    // Hide main menu, show game
+    ui.mainMenu.classList.add('hidden');
+    ui.controlsHint.classList.remove('hidden');
+}
+
+// Phaser Update
+function update(time, delta) {
+    if (!currentScene) return;
+
+    // ===== FLIPPER PHYSICS - Apply torque and clamp angles =====
+    if (leftFlipper) {
+        // Apply torque when active, return to rest when not
+        if (leftFlipper.isActive) {
+            currentScene.matter.body.setAngularVelocity(leftFlipper, 0.6);
+        } else {
+            currentScene.matter.body.setAngularVelocity(leftFlipper, -0.5);
+        }
+
+        // Clamp angle to limits
+        if (leftFlipper.angle < leftFlipper.minAngle) {
+            currentScene.matter.body.setAngle(leftFlipper, leftFlipper.minAngle);
+            currentScene.matter.body.setAngularVelocity(leftFlipper, 0);
+        } else if (leftFlipper.angle > leftFlipper.maxAngle) {
+            currentScene.matter.body.setAngle(leftFlipper, leftFlipper.maxAngle);
+            currentScene.matter.body.setAngularVelocity(leftFlipper, 0);
+        }
+    }
+
+    if (rightFlipper) {
+        // Apply torque when active, return to rest when not
+        if (rightFlipper.isActive) {
+            currentScene.matter.body.setAngularVelocity(rightFlipper, -0.6);
+        } else {
+            currentScene.matter.body.setAngularVelocity(rightFlipper, 0.5);
+        }
+
+        // Clamp angle to limits
+        if (rightFlipper.angle < rightFlipper.minAngle) {
+            currentScene.matter.body.setAngle(rightFlipper, rightFlipper.minAngle);
+            currentScene.matter.body.setAngularVelocity(rightFlipper, 0);
+        } else if (rightFlipper.angle > rightFlipper.maxAngle) {
+            currentScene.matter.body.setAngle(rightFlipper, rightFlipper.maxAngle);
+            currentScene.matter.body.setAngularVelocity(rightFlipper, 0);
+        }
+    }
+
+    // ===== PLUNGER CHARGING =====
+    if (chargingPlunger) {
+        plungerPower = Math.min(plungerPower + delta * 0.002, 1.0);
+    }
+
+    // ===== MULTIPLIER TIMER =====
+    if (gameState.multiplierTimer > 0) {
+        gameState.multiplierTimer -= delta;
+        if (gameState.multiplierTimer <= 0) {
+            gameState.multiplier = Math.max(1, gameState.multiplier - 1);
+            updateUI();
+        }
+    }
+
+    // ===== FANUM TAX TIMER =====
+    if (gameState.fanumTaxActive) {
+        gameState.fanumTaxTimer -= delta;
+        ui.taxCountdown.textContent = Math.ceil(gameState.fanumTaxTimer / 1000);
+
+        if (gameState.fanumTaxTimer <= 0) {
+            deactivateFanumTax();
+        }
+    }
+
+    // ===== CHECK IF BALL OUT OF BOUNDS =====
+    if (ball && ball.position.y > 1050) {
+        handleBallLost();
+    }
 }
 
 // Setup Controls
@@ -485,9 +484,19 @@ function setupControls(scene) {
         rightFlipper.isActive = false;
     });
 
-    // Launch ball
+    // Launch ball - hold space to charge, release to launch
     spaceKey.on('down', () => {
-        launchBall();
+        if (!ballLaunched && canLaunch) {
+            chargingPlunger = true;
+            plungerPower = 0;
+        }
+    });
+
+    spaceKey.on('up', () => {
+        if (chargingPlunger) {
+            launchBall();
+            chargingPlunger = false;
+        }
     });
 
     // Touch controls
@@ -554,15 +563,22 @@ function setupCollisions(scene) {
 
 // Launch Ball
 function launchBall() {
-    if (!canLaunch || ballLaunched || !currentScene || !ball) return;
+    if (!canLaunch || !currentScene || !ball) return;
 
-    // Apply strong upward force to ball to simulate plunger hit
-    const launchForce = 0.25;
-    currentScene.matter.body.applyForce(ball, ball.position, { x: 0, y: -launchForce });
+    // Use charged power to determine launch velocity
+    const minVelocity = -15;
+    const maxVelocity = -35;
+    const launchVelocity = minVelocity + (maxVelocity - minVelocity) * plungerPower;
+
+    // Apply velocity directly to ball
+    currentScene.matter.body.setVelocity(ball, { x: 0, y: launchVelocity });
 
     ballLaunched = true;
     canLaunch = false;
     sounds.launch();
+
+    // Reset plunger power
+    plungerPower = 0;
 
     // Allow launching again after ball leaves launch lane
     setTimeout(() => {
