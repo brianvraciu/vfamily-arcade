@@ -1,0 +1,236 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.game-container {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    max-width: 900px;
+    position: relative;
+}
+
+.title h1 {
+    color: #764ba2;
+    font-size: 3em;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.subtitle {
+    color: #666;
+    font-size: 1.2em;
+    margin-bottom: 20px;
+}
+
+.level-info {
+    margin-bottom: 15px;
+}
+
+.level-name {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #764ba2;
+    margin-bottom: 10px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.score-container {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    font-size: 1.3em;
+    font-weight: bold;
+}
+
+.score {
+    color: #667eea;
+}
+
+.level-display {
+    color: #764ba2;
+}
+
+.high-score {
+    color: #FF6B6B;
+}
+
+#gameCanvas {
+    border: 3px solid #764ba2;
+    border-radius: 10px;
+    background: linear-gradient(to bottom, #87ceeb 0%, #e0f6ff 100%);
+    display: block;
+    margin: 0 auto;
+    cursor: pointer;
+}
+
+.controls {
+    margin-top: 20px;
+    color: #666;
+}
+
+.controls p {
+    margin-bottom: 15px;
+    font-size: 1.1em;
+}
+
+.controls button,
+#restartBtn,
+#nextLevelBtn,
+#menuBtn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    margin: 5px;
+    font-size: 1.1em;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-weight: bold;
+}
+
+.controls button:hover,
+#restartBtn:hover,
+#nextLevelBtn:hover,
+#menuBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+}
+
+.controls button:active,
+#restartBtn:active,
+#nextLevelBtn:active,
+#menuBtn:active {
+    transform: translateY(0);
+}
+
+.game-over,
+.level-complete,
+.level-select,
+.all-complete {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.98);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    min-width: 400px;
+}
+
+.game-over h2,
+.level-complete h2,
+.level-select h2,
+.all-complete h2 {
+    color: #764ba2;
+    font-size: 2.5em;
+    margin-bottom: 20px;
+}
+
+.game-over p,
+.level-complete p,
+.all-complete p {
+    font-size: 1.5em;
+    color: #667eea;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.level-complete-name {
+    color: #764ba2 !important;
+    font-size: 1.8em !important;
+}
+
+.level-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.level-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 20px;
+    font-size: 1.2em;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-weight: bold;
+}
+
+.level-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+}
+
+.level-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.level-btn.bonus {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #FF6B6B 0%, #C92A2A 100%);
+}
+
+.level-btn.bonus:hover {
+    box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+}
+
+@media (max-width: 850px) {
+    #gameCanvas {
+        width: 100%;
+        height: auto;
+    }
+
+    .title h1 {
+        font-size: 2em;
+    }
+
+    .game-over,
+    .level-complete,
+    .level-select,
+    .all-complete {
+        min-width: 90%;
+        padding: 20px;
+    }
+
+    .level-buttons {
+        grid-template-columns: 1fr;
+    }
+}

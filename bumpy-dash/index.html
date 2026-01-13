@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bumpy Dash</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="title">
+            <h1>🐱 BUMPY DASH 🐱</h1>
+            <p class="subtitle">Help Bumpy avoid the dogs and obstacles!</p>
+        </div>
+
+        <div class="level-info">
+            <div class="level-name" id="levelName">Stereo Madness</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="score-container">
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="level-display">Level: <span id="currentLevel">1</span>/5</div>
+            <div class="high-score">Best: <span id="highScore">0</span></div>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+        <div class="controls">
+            <p><strong>SPACE</strong> or <strong>CLICK</strong> to jump</p>
+            <button id="restartBtn" style="display: none;">Play Again</button>
+            <button id="nextLevelBtn" style="display: none;">Next Level</button>
+            <button id="menuBtn" style="display: none;">Level Select</button>
+        </div>
+
+        <div id="levelComplete" class="level-complete" style="display: none;">
+            <h2>Level Complete!</h2>
+            <p class="level-complete-name" id="completeLevelName"></p>
+            <p>Score: <span id="levelScore">0</span></p>
+        </div>
+
+        <div id="gameOver" class="game-over" style="display: none;">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+        </div>
+
+        <div id="levelSelect" class="level-select" style="display: none;">
+            <h2>Select Level</h2>
+            <div class="level-buttons" id="levelButtons"></div>
+        </div>
+
+        <div id="allComplete" class="all-complete" style="display: none;">
+            <h2>Congratulations!</h2>
+            <p>You've beaten all levels!</p>
+            <p>Bonus level "Clubstep" is now unlocked!</p>
+        </div>
+    </div>
+
+    <!-- Audio elements -->
+    <audio id="bgMusic" loop>
+        <!-- Background music placeholder - user can add their own music files -->
+    </audio>
+
+    <script src="game.js"></script>
+</body>
+</html>
