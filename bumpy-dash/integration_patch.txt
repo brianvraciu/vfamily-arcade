@@ -1,0 +1,105 @@
+ESSENTIAL INTEGRATIONS NEEDED:
+
+1. ADD NEW VARIABLES (after line 20):
+---
+let teacherCodeInput = '';
+let godMode = false;
+let isEndlessMode = false;
+let particles = [];
+let checkpoints = [];
+let collectibles = [];
+let currentCheckpoint = null;
+let collectibleCount = 0;
+const COYOTE_TIME_DURATION = 6;
+let bgLayerOffset1 = 0;
+let bgLayerOffset2 = 0;
+---
+
+2. UPDATE PLAYER OBJECT (replace lines 33-43):
+---
+const player = {
+    x: 100,
+    y: 300,
+    width: 40,
+    height: 40,
+    baseWidth: 40,
+    baseHeight: 40,
+    scaleX: 1,
+    scaleY: 1,
+    velocityY: 0,
+    gravity: 0.6,
+    jumpPower: -13,
+    grounded: false,
+    rotation: 0,
+    coyoteTimer: 0
+};
+---
+
+3. IN UPDATE FUNCTION (after frameCount++, around line 589):
+---
+    updateParticles();
+    updateSquashStretch();
+    updateCoyoteTime();
+---
+
+4. IN UPDATE FUNCTION (after ground collision, around line 612):
+---
+        if (player.velocityY > 5) {
+            spawnDustParticles(player.x, player.y + player.height);
+        }
+---
+
+5. IN UPDATE FUNCTION (after platform collisions, around line 627):
+---
+    checkCheckpointCollision();
+    checkCollectibleCollision();
+---
+
+6. IN DRAW FUNCTION (at start, after clear canvas):
+---
+    drawParallaxBackground();
+---
+
+7. IN DRAW FUNCTION (after drawing all objects):
+---
+    drawParticles();
+    checkpoints.forEach(checkpoint => drawCheckpoint(checkpoint));
+    collectibles.forEach(collectible => drawCollectible(collectible));
+    drawGodModeEffect();
+---
+
+8. IN JUMP FUNCTION (replace player.grounded check):
+Replace: if (player.grounded && !nearOrb)
+With: if (canJump() && !nearOrb)
+
+Also add: spawnDustParticles(player.x, player.y + player.height);
+
+9. ADD EVENT LISTENER (at end of file, before gameLoop()):
+---
+document.addEventListener('keypress', (e) => {
+    teacherCodeInput += e.key.toUpperCase();
+    if (teacherCodeInput.length > 7) {
+        teacherCodeInput = teacherCodeInput.slice(-7);
+    }
+    if (teacherCodeInput.includes('TEACHER')) {
+        godMode = !godMode;
+        teacherCodeInput = '';
+        playSound(godMode ? 1000 : 500, 0.3, 'sine');
+    }
+});
+---
+
+10. IN START GAME FUNCTION (add resets):
+---
+    particles = [];
+    checkpoints = [];
+    collectibles = [];
+    collectibleCount = 0;
+    currentCheckpoint = null;
+    player.coyoteTimer = 0;
+    bgLayerOffset1 = 0;
+    bgLayerOffset2 = 0;
+---
+
+11. UPDATE drawBumpy FUNCTION to use player.scaleX and player.scaleY:
+In drawBumpy, when drawing the image, apply scaling transforms.
