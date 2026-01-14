@@ -193,215 +193,189 @@ function create() {
         vault: 0xFFD700        // Gold vault
     };
 
+    // ===== COLLISION CATEGORIES =====
+    const COLLISION = {
+        default: 0x0001,
+        wall: 0x0002,
+        flipper: 0x0004,
+        ball: 0x0008,
+        sensor: 0x0010
+    };
+
     // ===== CREATE WORLD BOUNDARIES =====
-    // Top wall
-    scene.matter.add.rectangle(width / 2, -25, width, 50, {
+    // Top wall - LEFT ALIGNED with 60px gap on right for launch tunnel exit
+    const topWallWidth = width - 60;
+    scene.matter.add.rectangle(topWallWidth / 2, 10, topWallWidth, 20, {
         isStatic: true,
         label: 'wall',
         friction: 0.1,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball | COLLISION.default
+        },
+        render: { fillStyle: COLORS.wall }
+    });
+
+    // Top-right deflector (45 degree angle) - deflects ball from tunnel into playfield
+    scene.matter.add.rectangle(width - 30, 30, 40, 20, {
+        isStatic: true,
+        angle: 0.785, // 45 degrees
+        label: 'wall',
+        friction: 0.1,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball | COLLISION.default
+        },
         render: { fillStyle: COLORS.wall }
     });
 
     // Left wall
-    scene.matter.add.rectangle(-25, height / 2, 50, height, {
+    scene.matter.add.rectangle(10, height / 2, 20, height, {
         isStatic: true,
         label: 'wall',
         friction: 0.1,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball | COLLISION.default
+        },
         render: { fillStyle: COLORS.wall }
     });
 
-    // Bottom wall (drain area)
-    scene.matter.add.rectangle(width / 2, height + 25, width, 50, {
+    // Right wall (full height for launch tunnel)
+    scene.matter.add.rectangle(width - 10, height / 2, 20, height, {
         isStatic: true,
         label: 'wall',
         friction: 0.1,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball | COLLISION.default
+        },
         render: { fillStyle: COLORS.wall }
     });
 
-    // ===== LAUNCH TUNNEL WITH COMPLETE CURVED ARCH =====
-    const archStartY = 120;
-
-    // Launch lane outer wall (right side - full height)
-    scene.matter.add.rectangle(width - 20, height / 2, 20, height, {
+    // Launch tunnel left wall (separates tunnel from playfield)
+    scene.matter.add.rectangle(width - 70, height / 2, 20, height, {
         isStatic: true,
         label: 'wall',
         friction: 0.1,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball | COLLISION.default
+        },
         render: { fillStyle: COLORS.wall }
     });
 
-    // Launch lane inner wall (left side - straight up until arch starts)
-    scene.matter.add.rectangle(width - 80, height / 2 + 150, 20, height - 300, {
+    // Bottom outlane walls (angled)
+    scene.matter.add.rectangle(150, height - 80, 200, 20, {
         isStatic: true,
-        label: 'wall',
-        friction: 0.1,
-        render: { fillStyle: COLORS.wall }
-    });
-
-    // CURVED TUNNEL ARCH - Both inner and outer walls curve left at top
-    // Inner curve (left/inside wall of tunnel)
-    const innerArchSegments = [
-        { x: width - 80, y: archStartY + 30, w: 20, h: 30, angle: -0.1 },
-        { x: width - 95, y: archStartY + 10, w: 20, h: 30, angle: -0.3 },
-        { x: width - 120, y: archStartY - 5, w: 20, h: 30, angle: -0.5 },
-        { x: width - 150, y: archStartY - 10, w: 20, h: 30, angle: -0.7 },
-        { x: width - 180, y: archStartY - 5, w: 20, h: 30, angle: -0.85 },
-        { x: width - 205, y: archStartY + 10, w: 20, h: 30, angle: -1.0 }
-    ];
-
-    // Outer curve (right/outside wall of tunnel)
-    const outerArchSegments = [
-        { x: width - 20, y: archStartY + 20, w: 20, h: 30, angle: -0.1 },
-        { x: width - 40, y: archStartY, w: 20, h: 30, angle: -0.3 },
-        { x: width - 70, y: archStartY - 15, w: 20, h: 30, angle: -0.5 },
-        { x: width - 105, y: archStartY - 22, w: 20, h: 30, angle: -0.7 },
-        { x: width - 140, y: archStartY - 20, w: 20, h: 30, angle: -0.85 },
-        { x: width - 170, y: archStartY - 10, w: 20, h: 30, angle: -1.0 }
-    ];
-
-    // Build both sides of the curved tunnel
-    innerArchSegments.forEach(seg => {
-        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
-            isStatic: true,
-            angle: seg.angle,
-            label: 'wall',
-            friction: 0.1,
-            render: { fillStyle: COLORS.wall }
-        });
-    });
-
-    outerArchSegments.forEach(seg => {
-        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
-            isStatic: true,
-            angle: seg.angle,
-            label: 'wall',
-            friction: 0.1,
-            render: { fillStyle: COLORS.wall }
-        });
-    });
-
-    // Right playfield wall (starts where arch ends)
-    scene.matter.add.rectangle(width - 90, height / 2 + 50, 20, height - 280, {
-        isStatic: true,
-        label: 'wall',
-        friction: 0.1,
-        render: { fillStyle: COLORS.wall }
-    });
-
-    // Separator between launch lane and playfield at bottom
-    scene.matter.add.rectangle(width - 50, height - 100, 80, 20, {
-        isStatic: true,
-        label: 'wall',
-        friction: 0.1,
-        render: { fillStyle: COLORS.wall }
-    });
-
-    // ===== OUTLANE WALLS (ANGLED) =====
-    // Left outlane
-    scene.matter.add.rectangle(140, height - 90, 200, 20, {
-        isStatic: true,
-        angle: 0.5,
+        angle: 0.4,
         label: 'wall',
         friction: 0.3,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball | COLLISION.default
+        },
         render: { fillStyle: COLORS.wall }
     });
 
-    // Right outlane
-    scene.matter.add.rectangle(width - 230, height - 90, 200, 20, {
+    scene.matter.add.rectangle(width - 220, height - 80, 200, 20, {
         isStatic: true,
-        angle: -0.5,
+        angle: -0.4,
         label: 'wall',
         friction: 0.3,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball | COLLISION.default
+        },
         render: { fillStyle: COLORS.wall }
     });
 
-    // ===== CREATE FLIPPERS (CLOSER TOGETHER, ANGLED DOWN) =====
+    // ===== DRAIN SENSOR (Bottom of screen) =====
+    const drainSensor = scene.matter.add.rectangle(width / 2, height - 10, width, 20, {
+        isStatic: true,
+        isSensor: true,
+        label: 'drain',
+        collisionFilter: {
+            category: COLLISION.sensor,
+            mask: COLLISION.ball
+        },
+        render: { fillStyle: 0xFF0000, opacity: 0.3 }
+    });
+
+    // ===== CREATE FLIPPERS USING HINGE METHOD =====
     const flipperWidth = 100;
     const flipperHeight = 20;
-    const flipperY = height - 150;
-    const centerX = width / 2 - 30; // Shift slightly left to account for launch lane
+    const flipperY = height - 130;
+    const centerX = width / 2;
 
-    // LEFT FLIPPER - Positioned closer to center, angled DOWN at rest
-    const leftFlipperX = centerX - 70;
-    const leftPivotX = leftFlipperX - 40;
-    const leftPivotY = flipperY;
+    // LEFT FLIPPER
+    const leftFlipperX = centerX - 100;
+    const leftFlipperY = flipperY;
 
-    leftFlipper = scene.matter.add.rectangle(leftFlipperX, flipperY, flipperWidth, flipperHeight, {
+    // Step A: Create Flipper Body (isStatic: false, density: 0.1)
+    leftFlipper = scene.matter.add.rectangle(leftFlipperX, leftFlipperY, flipperWidth, flipperHeight, {
+        isStatic: false,
+        density: 0.1,
+        friction: 0.5,
+        restitution: 0.8,
         chamfer: { radius: 10 },
         label: 'flipper',
-        density: 0.001,
-        friction: 0.8,
-        restitution: 0.6,
         collisionFilter: {
-            category: 1,
-            mask: -1
+            category: COLLISION.flipper,
+            mask: COLLISION.ball | COLLISION.wall
         },
         render: { fillStyle: COLORS.flipper }
     });
 
-    // Pin left flipper with constraint
-    const leftPivot = scene.matter.add.circle(leftPivotX, leftPivotY, 5, {
-        isStatic: true,
-        render: { fillStyle: COLORS.wall }
+    // Step B: Set angle to 0.5 (30 degrees down)
+    scene.matter.body.setAngle(leftFlipper, 0.5);
+
+    // Step C: Create World Constraint (pins flipper to origin, stiffness: 1, length: 0)
+    leftFlipperConstraint = scene.matter.add.worldConstraint(leftFlipper, 0, 1, {
+        pointA: { x: leftFlipperX - 40, y: leftFlipperY },
+        pointB: { x: -40, y: 0 },
+        length: 0,
+        stiffness: 1
     });
 
-    leftFlipperConstraint = scene.matter.add.constraint(leftFlipper, leftPivot, 0, 0.9, {
-        pointA: { x: -40, y: 0 },
-        stiffness: 0.9,
-        damping: 0.1
-    });
+    // RIGHT FLIPPER
+    const rightFlipperX = centerX + 100;
+    const rightFlipperY = flipperY;
 
-    // Set angle limits - REST angle points DOWN (30 degrees down)
-    leftFlipper.minAngle = -0.52; // ~-30 degrees (down-right at rest)
-    leftFlipper.maxAngle = 0.4;   // ~23 degrees (up when active)
-    leftFlipper.restAngle = -0.52;
-    leftFlipper.activeAngle = 0.4;
-    scene.matter.body.setAngle(leftFlipper, leftFlipper.restAngle);
-
-    // RIGHT FLIPPER - Positioned closer to center, angled DOWN at rest
-    const rightFlipperX = centerX + 70;
-    const rightPivotX = rightFlipperX + 40;
-    const rightPivotY = flipperY;
-
-    rightFlipper = scene.matter.add.rectangle(rightFlipperX, flipperY, flipperWidth, flipperHeight, {
+    // Step A: Create Flipper Body (isStatic: false, density: 0.1)
+    rightFlipper = scene.matter.add.rectangle(rightFlipperX, rightFlipperY, flipperWidth, flipperHeight, {
+        isStatic: false,
+        density: 0.1,
+        friction: 0.5,
+        restitution: 0.8,
         chamfer: { radius: 10 },
         label: 'flipper',
-        density: 0.001,
-        friction: 0.8,
-        restitution: 0.6,
         collisionFilter: {
-            category: 1,
-            mask: -1
+            category: COLLISION.flipper,
+            mask: COLLISION.ball | COLLISION.wall
         },
         render: { fillStyle: COLORS.flipper }
     });
 
-    // Pin right flipper with constraint
-    const rightPivot = scene.matter.add.circle(rightPivotX, rightPivotY, 5, {
-        isStatic: true,
-        render: { fillStyle: COLORS.wall }
+    // Step B: Set angle to -0.5 (30 degrees down, opposite direction)
+    scene.matter.body.setAngle(rightFlipper, -0.5);
+
+    // Step C: Create World Constraint (pins flipper to origin, stiffness: 1, length: 0)
+    rightFlipperConstraint = scene.matter.add.worldConstraint(rightFlipper, 0, 1, {
+        pointA: { x: rightFlipperX + 40, y: rightFlipperY },
+        pointB: { x: 40, y: 0 },
+        length: 0,
+        stiffness: 1
     });
 
-    rightFlipperConstraint = scene.matter.add.constraint(rightFlipper, rightPivot, 0, 0.9, {
-        pointA: { x: 40, y: 0 },
-        stiffness: 0.9,
-        damping: 0.1
-    });
-
-    // Set angle limits - REST angle points DOWN (30 degrees down)
-    rightFlipper.minAngle = -0.52; // ~-30 degrees (down-left at rest)
-    rightFlipper.maxAngle = 0.4;   // ~23 degrees (up when active)
-    rightFlipper.restAngle = -0.52;
-    rightFlipper.activeAngle = 0.4;
-    scene.matter.body.setAngle(rightFlipper, rightFlipper.restAngle);
-
-    // ===== CREATE BUMPERS (BRIGHT RED) =====
+    // ===== CREATE BUMPERS =====
     bumpers = [];
     const bumperPositions = [
-        { x: 250, y: 280 },
-        { x: 450, y: 280 },
-        { x: 350, y: 420 },
-        { x: 220, y: 550 },
-        { x: 480, y: 550 }
+        { x: 250, y: 300 },
+        { x: 450, y: 300 },
+        { x: 350, y: 450 },
+        { x: 200, y: 600 },
+        { x: 500, y: 600 }
     ];
 
     bumperPositions.forEach(pos => {
@@ -409,19 +383,23 @@ function create() {
             isStatic: true,
             restitution: 1.8,
             label: 'bumper',
+            collisionFilter: {
+                category: COLLISION.wall,
+                mask: COLLISION.ball
+            },
             render: { fillStyle: COLORS.bumper }
         });
         bumpers.push(bumper);
     });
 
-    // ===== CREATE TARGETS (CYAN) =====
+    // ===== CREATE TARGETS =====
     targets = [];
     const targetPositions = [
-        { x: 140, y: 200 },
-        { x: 560, y: 200 },
-        { x: 140, y: 400 },
-        { x: 560, y: 400 },
-        { x: 350, y: 150 }
+        { x: 140, y: 220 },
+        { x: 560, y: 220 },
+        { x: 140, y: 420 },
+        { x: 560, y: 420 },
+        { x: 350, y: 160 }
     ];
 
     targetPositions.forEach((pos, index) => {
@@ -430,29 +408,37 @@ function create() {
             label: 'target',
             targetId: index,
             restitution: 0.5,
+            collisionFilter: {
+                category: COLLISION.wall,
+                mask: COLLISION.ball
+            },
             render: { fillStyle: COLORS.target }
         });
         targets.push(target);
     });
 
-    // ===== CREATE VAULT (GOLD - FANUM TAX) =====
-    vault = scene.matter.add.rectangle(350, 60, 80, 40, {
+    // ===== CREATE VAULT (FANUM TAX) =====
+    vault = scene.matter.add.rectangle(350, 70, 80, 40, {
         isStatic: true,
         label: 'vault',
         restitution: 0.5,
+        collisionFilter: {
+            category: COLLISION.wall,
+            mask: COLLISION.ball
+        },
         render: { fillStyle: COLORS.vault }
     });
 
-    // ===== CREATE BALL (WHITE) =====
-    ball = scene.matter.add.circle(width - 50, height - 200, 15, {
+    // ===== CREATE BALL =====
+    ball = scene.matter.add.circle(width - 40, height - 200, 15, {
         restitution: 0.7,
         friction: 0.01,
         frictionAir: 0.005,
         density: 0.002,
         label: 'ball',
         collisionFilter: {
-            category: 1,
-            mask: -1
+            category: COLLISION.ball,
+            mask: COLLISION.wall | COLLISION.flipper | COLLISION.sensor
         },
         render: { fillStyle: COLORS.ball }
     });
@@ -462,11 +448,95 @@ function create() {
     plungerPower = 0;
     chargingPlunger = false;
 
-    // ===== SETUP CONTROLS =====
-    setupControls(scene);
+    // ===== SETUP FLIPPER CONTROLS (Step D) =====
+    // Left flipper - LEFT ARROW KEY
+    scene.input.keyboard.on('keydown-LEFT', () => {
+        scene.matter.body.setAngularVelocity(leftFlipper, -0.2);
+        sounds.flipper();
+    });
+
+    scene.input.keyboard.on('keyup-LEFT', () => {
+        scene.matter.body.setAngularVelocity(leftFlipper, 0);
+    });
+
+    // Right flipper - RIGHT ARROW KEY
+    scene.input.keyboard.on('keydown-RIGHT', () => {
+        scene.matter.body.setAngularVelocity(rightFlipper, 0.2);
+        sounds.flipper();
+    });
+
+    scene.input.keyboard.on('keyup-RIGHT', () => {
+        scene.matter.body.setAngularVelocity(rightFlipper, 0);
+    });
+
+    // Plunger controls - SPACE KEY
+    const spaceKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    spaceKey.on('down', () => {
+        if (!ballLaunched && canLaunch) {
+            chargingPlunger = true;
+            plungerPower = 0;
+        }
+    });
+
+    spaceKey.on('up', () => {
+        if (chargingPlunger) {
+            launchBall();
+            chargingPlunger = false;
+        }
+    });
+
+    // Touch controls for mobile
+    const halfWidth = width / 2;
+
+    scene.input.on('pointerdown', (pointer) => {
+        if (pointer.x < halfWidth) {
+            scene.matter.body.setAngularVelocity(leftFlipper, -0.2);
+            sounds.flipper();
+        } else {
+            scene.matter.body.setAngularVelocity(rightFlipper, 0.2);
+            sounds.flipper();
+        }
+    });
+
+    scene.input.on('pointerup', (pointer) => {
+        if (pointer.x < halfWidth) {
+            scene.matter.body.setAngularVelocity(leftFlipper, 0);
+        } else {
+            scene.matter.body.setAngularVelocity(rightFlipper, 0);
+        }
+    });
 
     // ===== SETUP COLLISIONS =====
-    setupCollisions(scene);
+    scene.matter.world.on('collisionstart', (event) => {
+        event.pairs.forEach(pair => {
+            const { bodyA, bodyB } = pair;
+
+            // Drain sensor - respawn ball
+            if ((bodyA.label === 'drain' && bodyB.label === 'ball') ||
+                (bodyA.label === 'ball' && bodyB.label === 'drain')) {
+                handleBallLost();
+            }
+
+            // Bumper collision
+            if ((bodyA.label === 'bumper' && bodyB.label === 'ball') ||
+                (bodyA.label === 'ball' && bodyB.label === 'bumper')) {
+                handleBumperHit(bodyA.label === 'ball' ? bodyA : bodyB);
+            }
+
+            // Target collision
+            if ((bodyA.label === 'target' && bodyB.label === 'ball') ||
+                (bodyA.label === 'ball' && bodyB.label === 'target')) {
+                handleTargetHit(bodyA.label === 'target' ? bodyA : bodyB);
+            }
+
+            // Vault collision
+            if ((bodyA.label === 'vault' && bodyB.label === 'ball') ||
+                (bodyA.label === 'ball' && bodyB.label === 'vault')) {
+                handleVaultHit();
+            }
+        });
+    });
 
     // Update UI
     updateUI();
@@ -479,58 +549,6 @@ function create() {
 // Phaser Update
 function update(time, delta) {
     if (!currentScene) return;
-
-    // ===== FLIPPER PHYSICS - Smart torque application =====
-    const flipperStrength = 0.8;
-    const angleThreshold = 0.05; // Stop applying force when within 0.05 rad of target
-
-    if (leftFlipper) {
-        const targetAngle = leftFlipper.isActive ? leftFlipper.maxAngle : leftFlipper.minAngle;
-        const angleDiff = targetAngle - leftFlipper.angle;
-
-        // Only apply velocity if we're not at the target angle
-        if (Math.abs(angleDiff) > angleThreshold) {
-            // Apply velocity in direction of target
-            const velocity = angleDiff > 0 ? flipperStrength : -flipperStrength;
-            currentScene.matter.body.setAngularVelocity(leftFlipper, velocity);
-        } else {
-            // At target, stop moving
-            currentScene.matter.body.setAngularVelocity(leftFlipper, 0);
-        }
-
-        // Hard clamp to absolute limits
-        if (leftFlipper.angle < leftFlipper.minAngle) {
-            currentScene.matter.body.setAngle(leftFlipper, leftFlipper.minAngle);
-            currentScene.matter.body.setAngularVelocity(leftFlipper, 0);
-        } else if (leftFlipper.angle > leftFlipper.maxAngle) {
-            currentScene.matter.body.setAngle(leftFlipper, leftFlipper.maxAngle);
-            currentScene.matter.body.setAngularVelocity(leftFlipper, 0);
-        }
-    }
-
-    if (rightFlipper) {
-        const targetAngle = rightFlipper.isActive ? rightFlipper.maxAngle : rightFlipper.minAngle;
-        const angleDiff = targetAngle - rightFlipper.angle;
-
-        // Only apply velocity if we're not at the target angle
-        if (Math.abs(angleDiff) > angleThreshold) {
-            // Apply velocity in direction of target
-            const velocity = angleDiff > 0 ? flipperStrength : -flipperStrength;
-            currentScene.matter.body.setAngularVelocity(rightFlipper, velocity);
-        } else {
-            // At target, stop moving
-            currentScene.matter.body.setAngularVelocity(rightFlipper, 0);
-        }
-
-        // Hard clamp to absolute limits
-        if (rightFlipper.angle < rightFlipper.minAngle) {
-            currentScene.matter.body.setAngle(rightFlipper, rightFlipper.minAngle);
-            currentScene.matter.body.setAngularVelocity(rightFlipper, 0);
-        } else if (rightFlipper.angle > rightFlipper.maxAngle) {
-            currentScene.matter.body.setAngle(rightFlipper, rightFlipper.maxAngle);
-            currentScene.matter.body.setAngularVelocity(rightFlipper, 0);
-        }
-    }
 
     // ===== PLUNGER CHARGING =====
     if (chargingPlunger) {
@@ -555,114 +573,6 @@ function update(time, delta) {
             deactivateFanumTax();
         }
     }
-
-    // ===== CHECK IF BALL OUT OF BOUNDS =====
-    if (ball && ball.position.y > 1050) {
-        handleBallLost();
-    }
-}
-
-// Setup Controls
-function setupControls(scene) {
-    // Keyboard controls
-    const cursors = scene.input.keyboard.createCursorKeys();
-    const spaceKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-
-    // Left flipper
-    scene.input.keyboard.on('keydown-LEFT', () => {
-        leftFlipper.isActive = true;
-        sounds.flipper();
-    });
-
-    scene.input.keyboard.on('keyup-LEFT', () => {
-        leftFlipper.isActive = false;
-    });
-
-    // Right flipper
-    scene.input.keyboard.on('keydown-RIGHT', () => {
-        rightFlipper.isActive = true;
-        sounds.flipper();
-    });
-
-    scene.input.keyboard.on('keyup-RIGHT', () => {
-        rightFlipper.isActive = false;
-    });
-
-    // Launch ball - hold space to charge, release to launch
-    spaceKey.on('down', () => {
-        if (!ballLaunched && canLaunch) {
-            chargingPlunger = true;
-            plungerPower = 0;
-        }
-    });
-
-    spaceKey.on('up', () => {
-        if (chargingPlunger) {
-            launchBall();
-            chargingPlunger = false;
-        }
-    });
-
-    // Touch controls
-    const { width } = scene.cameras.main;
-
-    scene.input.on('pointerdown', (pointer) => {
-        if (pointer.x < width / 2) {
-            leftFlipper.isActive = true;
-            sounds.flipper();
-        } else {
-            rightFlipper.isActive = true;
-            sounds.flipper();
-        }
-    });
-
-    scene.input.on('pointerup', (pointer) => {
-        if (pointer.x < width / 2) {
-            leftFlipper.isActive = false;
-        } else {
-            rightFlipper.isActive = false;
-        }
-    });
-
-    // Swipe down to launch
-    let swipeStart = null;
-    scene.input.on('pointerdown', (pointer) => {
-        swipeStart = pointer.y;
-    });
-
-    scene.input.on('pointerup', (pointer) => {
-        if (swipeStart && pointer.y < swipeStart - 50 && !ballLaunched && canLaunch) {
-            launchBall();
-        }
-        swipeStart = null;
-    });
-}
-
-// Setup Collisions
-function setupCollisions(scene) {
-    scene.matter.world.on('collisionstart', (event) => {
-        event.pairs.forEach(pair => {
-            const { bodyA, bodyB } = pair;
-
-            // Bumper collision
-            if ((bodyA.label === 'bumper' && bodyB.label === 'ball') ||
-                (bodyA.label === 'ball' && bodyB.label === 'bumper')) {
-                handleBumperHit(bodyA.label === 'ball' ? bodyA : bodyB);
-            }
-
-            // Target collision
-            if ((bodyA.label === 'target' && bodyB.label === 'ball') ||
-                (bodyA.label === 'ball' && bodyB.label === 'target')) {
-                handleTargetHit(bodyA.label === 'target' ? bodyA : bodyB);
-            }
-
-            // Vault collision
-            if ((bodyA.label === 'vault' && bodyB.label === 'ball') ||
-                (bodyA.label === 'ball' && bodyB.label === 'vault')) {
-                handleVaultHit();
-            }
-        });
-    });
 }
 
 // Launch Ball
@@ -856,9 +766,16 @@ function handleBallLost() {
     if (gameState.balls <= 0) {
         endGame();
     } else {
-        // Reset ball
-        if (ball && ball.destroy) ball.destroy();
-        createBall(currentScene);
+        // Reset ball to plunger position
+        if (ball) {
+            const { width, height } = currentScene.cameras.main;
+            currentScene.matter.body.setPosition(ball, { x: width - 40, y: height - 200 });
+            currentScene.matter.body.setVelocity(ball, { x: 0, y: 0 });
+            currentScene.matter.body.setAngularVelocity(ball, 0);
+
+            ballLaunched = false;
+            canLaunch = true;
+        }
         updateUI();
     }
 }
