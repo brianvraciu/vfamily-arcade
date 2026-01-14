@@ -202,10 +202,82 @@ function create() {
         sensor: 0x0010
     };
 
-    // ===== CREATE WORLD BOUNDARIES =====
-    // Top wall - LEFT ALIGNED with 60px gap on right for launch tunnel exit
-    const topWallWidth = width - 60;
-    scene.matter.add.rectangle(topWallWidth / 2, 10, topWallWidth, 20, {
+    // ===== CREATE WORLD BOUNDARIES (Matching Template) =====
+    const launchLaneWidth = 100; // Launch lane on right side
+    const playfieldWidth = width - launchLaneWidth;
+
+    // TOP ARCH - Curved segments across the top
+    const archSegments = [
+        { x: 50, y: 20, w: 100, h: 20, angle: 0 },
+        { x: 150, y: 15, w: 100, h: 20, angle: 0 },
+        { x: 250, y: 12, w: 100, h: 20, angle: 0 },
+        { x: 350, y: 10, w: 100, h: 20, angle: 0 },
+        { x: 450, y: 10, w: 100, h: 20, angle: 0 },
+        { x: 550, y: 12, w: 100, h: 20, angle: 0 },
+        { x: 630, y: 20, w: 80, h: 20, angle: 0.2 }
+    ];
+
+    archSegments.forEach(seg => {
+        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
+            isStatic: true,
+            angle: seg.angle,
+            label: 'wall',
+            friction: 0.1,
+            collisionFilter: {
+                category: COLLISION.wall,
+                mask: COLLISION.ball | COLLISION.default
+            },
+            render: { fillStyle: COLORS.wall }
+        });
+    });
+
+    // LEFT SIDE WALL - Curved inward
+    const leftWallSegments = [
+        { x: 20, y: 100, w: 20, h: 120, angle: 0.1 },
+        { x: 25, y: 250, w: 20, h: 180, angle: 0 },
+        { x: 30, y: 450, w: 20, h: 220, angle: -0.1 },
+        { x: 40, y: 680, w: 20, h: 200, angle: -0.2 }
+    ];
+
+    leftWallSegments.forEach(seg => {
+        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
+            isStatic: true,
+            angle: seg.angle,
+            label: 'wall',
+            friction: 0.1,
+            collisionFilter: {
+                category: COLLISION.wall,
+                mask: COLLISION.ball | COLLISION.default
+            },
+            render: { fillStyle: COLORS.wall }
+        });
+    });
+
+    // RIGHT SIDE WALL (playfield boundary, before launch lane)
+    const rightWallSegments = [
+        { x: playfieldWidth - 20, y: 100, w: 20, h: 120, angle: -0.1 },
+        { x: playfieldWidth - 25, y: 250, w: 20, h: 180, angle: 0 },
+        { x: playfieldWidth - 30, y: 450, w: 20, h: 220, angle: 0.1 },
+        { x: playfieldWidth - 40, y: 680, w: 20, h: 200, angle: 0.2 }
+    ];
+
+    rightWallSegments.forEach(seg => {
+        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
+            isStatic: true,
+            angle: seg.angle,
+            label: 'wall',
+            friction: 0.1,
+            collisionFilter: {
+                category: COLLISION.wall,
+                mask: COLLISION.ball | COLLISION.default
+            },
+            render: { fillStyle: COLORS.wall }
+        });
+    });
+
+    // LAUNCH LANE WALLS
+    // Launch lane left wall (separates from playfield)
+    scene.matter.add.rectangle(playfieldWidth + 5, height / 2, 10, height, {
         isStatic: true,
         label: 'wall',
         friction: 0.1,
@@ -216,32 +288,7 @@ function create() {
         render: { fillStyle: COLORS.wall }
     });
 
-    // Top-right deflector (45 degree angle) - deflects ball from tunnel into playfield
-    scene.matter.add.rectangle(width - 30, 30, 40, 20, {
-        isStatic: true,
-        angle: 0.785, // 45 degrees
-        label: 'wall',
-        friction: 0.1,
-        collisionFilter: {
-            category: COLLISION.wall,
-            mask: COLLISION.ball | COLLISION.default
-        },
-        render: { fillStyle: COLORS.wall }
-    });
-
-    // Left wall
-    scene.matter.add.rectangle(10, height / 2, 20, height, {
-        isStatic: true,
-        label: 'wall',
-        friction: 0.1,
-        collisionFilter: {
-            category: COLLISION.wall,
-            mask: COLLISION.ball | COLLISION.default
-        },
-        render: { fillStyle: COLORS.wall }
-    });
-
-    // Right wall (full height for launch tunnel)
+    // Launch lane right wall (outer boundary)
     scene.matter.add.rectangle(width - 10, height / 2, 20, height, {
         isStatic: true,
         label: 'wall',
@@ -253,22 +300,31 @@ function create() {
         render: { fillStyle: COLORS.wall }
     });
 
-    // Launch tunnel left wall (separates tunnel from playfield)
-    scene.matter.add.rectangle(width - 70, height / 2, 20, height, {
-        isStatic: true,
-        label: 'wall',
-        friction: 0.1,
-        collisionFilter: {
-            category: COLLISION.wall,
-            mask: COLLISION.ball | COLLISION.default
-        },
-        render: { fillStyle: COLORS.wall }
+    // Launch lane to playfield curve (top right)
+    const curveSegments = [
+        { x: playfieldWidth + 10, y: 40, w: 30, h: 20, angle: -0.5 },
+        { x: playfieldWidth + 30, y: 60, w: 30, h: 20, angle: -0.7 },
+        { x: playfieldWidth + 50, y: 85, w: 30, h: 20, angle: -0.9 }
+    ];
+
+    curveSegments.forEach(seg => {
+        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
+            isStatic: true,
+            angle: seg.angle,
+            label: 'wall',
+            friction: 0.1,
+            collisionFilter: {
+                category: COLLISION.wall,
+                mask: COLLISION.ball | COLLISION.default
+            },
+            render: { fillStyle: COLORS.wall }
+        });
     });
 
-    // Bottom outlane walls (angled)
-    scene.matter.add.rectangle(150, height - 80, 200, 20, {
+    // BOTTOM OUTLANES - Angled walls below flippers
+    scene.matter.add.rectangle(180, height - 60, 180, 20, {
         isStatic: true,
-        angle: 0.4,
+        angle: 0.5,
         label: 'wall',
         friction: 0.3,
         collisionFilter: {
@@ -278,9 +334,9 @@ function create() {
         render: { fillStyle: COLORS.wall }
     });
 
-    scene.matter.add.rectangle(width - 220, height - 80, 200, 20, {
+    scene.matter.add.rectangle(width - 280, height - 60, 180, 20, {
         isStatic: true,
-        angle: -0.4,
+        angle: -0.5,
         label: 'wall',
         friction: 0.3,
         collisionFilter: {
@@ -288,6 +344,33 @@ function create() {
             mask: COLLISION.ball | COLLISION.default
         },
         render: { fillStyle: COLORS.wall }
+    });
+
+    // SLINGSHOTS (triangular bumpers above flippers)
+    const slingshots = [
+        // Left slingshots
+        { x: 150, y: height - 200, angle: 0.3 },
+        { x: 120, y: height - 150, angle: 0.4 },
+        { x: 100, y: height - 100, angle: 0.5 },
+        // Right slingshots
+        { x: width - 250, y: height - 200, angle: -0.3 },
+        { x: width - 220, y: height - 150, angle: -0.4 },
+        { x: width - 200, y: height - 100, angle: -0.5 }
+    ];
+
+    slingshots.forEach(sling => {
+        scene.matter.add.rectangle(sling.x, sling.y, 80, 15, {
+            isStatic: true,
+            angle: sling.angle,
+            label: 'slingshot',
+            restitution: 1.5,
+            friction: 0.1,
+            collisionFilter: {
+                category: COLLISION.wall,
+                mask: COLLISION.ball
+            },
+            render: { fillStyle: COLORS.target }
+        });
     });
 
     // ===== DRAIN SENSOR (Bottom of screen) =====
@@ -368,14 +451,16 @@ function create() {
         stiffness: 1
     });
 
-    // ===== CREATE BUMPERS =====
+    // ===== CREATE BUMPERS (5 bumpers matching template) =====
     bumpers = [];
     const bumperPositions = [
-        { x: 250, y: 300 },
-        { x: 450, y: 300 },
-        { x: 350, y: 450 },
-        { x: 200, y: 600 },
-        { x: 500, y: 600 }
+        // Top row (2 bumpers)
+        { x: 250, y: 280 },
+        { x: 450, y: 280 },
+        // Middle row (3 bumpers)
+        { x: 180, y: 400 },
+        { x: 350, y: 400 },
+        { x: 520, y: 400 }
     ];
 
     bumperPositions.forEach(pos => {
@@ -392,18 +477,28 @@ function create() {
         bumpers.push(bumper);
     });
 
-    // ===== CREATE TARGETS =====
+    // ===== CREATE TARGETS (small circles on sides, matching template) =====
     targets = [];
     const targetPositions = [
-        { x: 140, y: 220 },
-        { x: 560, y: 220 },
-        { x: 140, y: 420 },
-        { x: 560, y: 420 },
-        { x: 350, y: 160 }
+        // Left side targets
+        { x: 60, y: 250 },
+        { x: 60, y: 450 },
+        { x: 100, y: 750 },
+        { x: 120, y: 780 },
+        // Right side targets
+        { x: playfieldWidth - 60, y: 250 },
+        { x: playfieldWidth - 60, y: 450 },
+        { x: playfieldWidth - 100, y: 750 },
+        { x: playfieldWidth - 120, y: 780 },
+        // Top middle targets (small circles)
+        { x: 280, y: 200 },
+        { x: 320, y: 200 },
+        { x: 360, y: 200 },
+        { x: 400, y: 200 }
     ];
 
     targetPositions.forEach((pos, index) => {
-        const target = scene.matter.add.rectangle(pos.x, pos.y, 60, 20, {
+        const target = scene.matter.add.circle(pos.x, pos.y, 20, {
             isStatic: true,
             label: 'target',
             targetId: index,
@@ -429,8 +524,9 @@ function create() {
         render: { fillStyle: COLORS.vault }
     });
 
-    // ===== CREATE BALL =====
-    ball = scene.matter.add.circle(width - 40, height - 200, 15, {
+    // ===== CREATE BALL (in launch lane) =====
+    const ballStartX = playfieldWidth + (launchLaneWidth / 2);
+    ball = scene.matter.add.circle(ballStartX, height - 150, 15, {
         restitution: 0.7,
         friction: 0.01,
         frictionAir: 0.005,
@@ -766,10 +862,14 @@ function handleBallLost() {
     if (gameState.balls <= 0) {
         endGame();
     } else {
-        // Reset ball to plunger position
-        if (ball) {
+        // Reset ball to launch lane position
+        if (ball && currentScene) {
             const { width, height } = currentScene.cameras.main;
-            currentScene.matter.body.setPosition(ball, { x: width - 40, y: height - 200 });
+            const launchLaneWidth = 100;
+            const playfieldWidth = width - launchLaneWidth;
+            const ballStartX = playfieldWidth + (launchLaneWidth / 2);
+
+            currentScene.matter.body.setPosition(ball, { x: ballStartX, y: height - 150 });
             currentScene.matter.body.setVelocity(ball, { x: 0, y: 0 });
             currentScene.matter.body.setAngularVelocity(ball, 0);
 
