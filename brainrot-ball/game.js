@@ -218,11 +218,10 @@ function create() {
         render: { fillStyle: COLORS.wall }
     });
 
-    // ===== LAUNCH TUNNEL WITH TOP ARCH =====
-    const launchLaneX = width - 50;
-    const archStartY = 150;
+    // ===== LAUNCH TUNNEL WITH COMPLETE CURVED ARCH =====
+    const archStartY = 120;
 
-    // Launch lane right wall (full height)
+    // Launch lane outer wall (right side - full height)
     scene.matter.add.rectangle(width - 20, height / 2, 20, height, {
         isStatic: true,
         label: 'wall',
@@ -230,27 +229,37 @@ function create() {
         render: { fillStyle: COLORS.wall }
     });
 
-    // Launch lane left wall (goes up to arch)
-    scene.matter.add.rectangle(width - 80, height / 2 + 100, 20, height - 200, {
+    // Launch lane inner wall (left side - straight up until arch starts)
+    scene.matter.add.rectangle(width - 80, height / 2 + 150, 20, height - 300, {
         isStatic: true,
         label: 'wall',
         friction: 0.1,
         render: { fillStyle: COLORS.wall }
     });
 
-    // TOP ARCH - Curved transition from launch lane to playfield
-    // Create arch segments that curve left at top
-    const archSegments = [
-        // Start of curve (top of launch lane)
-        { x: width - 80, y: archStartY, w: 20, h: 30, angle: 0 },
-        { x: width - 100, y: archStartY - 20, w: 20, h: 30, angle: -0.3 },
-        { x: width - 130, y: archStartY - 30, w: 20, h: 30, angle: -0.5 },
-        { x: width - 160, y: archStartY - 35, w: 20, h: 30, angle: -0.7 },
-        { x: width - 190, y: archStartY - 30, w: 20, h: 30, angle: -0.9 }
-        // Opening left at end for ball to enter playfield
+    // CURVED TUNNEL ARCH - Both inner and outer walls curve left at top
+    // Inner curve (left/inside wall of tunnel)
+    const innerArchSegments = [
+        { x: width - 80, y: archStartY + 30, w: 20, h: 30, angle: -0.1 },
+        { x: width - 95, y: archStartY + 10, w: 20, h: 30, angle: -0.3 },
+        { x: width - 120, y: archStartY - 5, w: 20, h: 30, angle: -0.5 },
+        { x: width - 150, y: archStartY - 10, w: 20, h: 30, angle: -0.7 },
+        { x: width - 180, y: archStartY - 5, w: 20, h: 30, angle: -0.85 },
+        { x: width - 205, y: archStartY + 10, w: 20, h: 30, angle: -1.0 }
     ];
 
-    archSegments.forEach(seg => {
+    // Outer curve (right/outside wall of tunnel)
+    const outerArchSegments = [
+        { x: width - 20, y: archStartY + 20, w: 20, h: 30, angle: -0.1 },
+        { x: width - 40, y: archStartY, w: 20, h: 30, angle: -0.3 },
+        { x: width - 70, y: archStartY - 15, w: 20, h: 30, angle: -0.5 },
+        { x: width - 105, y: archStartY - 22, w: 20, h: 30, angle: -0.7 },
+        { x: width - 140, y: archStartY - 20, w: 20, h: 30, angle: -0.85 },
+        { x: width - 170, y: archStartY - 10, w: 20, h: 30, angle: -1.0 }
+    ];
+
+    // Build both sides of the curved tunnel
+    innerArchSegments.forEach(seg => {
         scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
             isStatic: true,
             angle: seg.angle,
@@ -260,8 +269,18 @@ function create() {
         });
     });
 
-    // Right playfield wall (starts after arch opening)
-    scene.matter.add.rectangle(width - 90, height / 2 + 50, 20, height - 300, {
+    outerArchSegments.forEach(seg => {
+        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
+            isStatic: true,
+            angle: seg.angle,
+            label: 'wall',
+            friction: 0.1,
+            render: { fillStyle: COLORS.wall }
+        });
+    });
+
+    // Right playfield wall (starts where arch ends)
+    scene.matter.add.rectangle(width - 90, height / 2 + 50, 20, height - 280, {
         isStatic: true,
         label: 'wall',
         friction: 0.1,
@@ -369,10 +388,10 @@ function create() {
     });
 
     // Set angle limits - REST angle points DOWN (30 degrees down)
-    rightFlipper.minAngle = -0.4;  // ~-23 degrees (up when active)
-    rightFlipper.maxAngle = 0.52;  // ~30 degrees (down-left at rest)
-    rightFlipper.restAngle = 0.52;
-    rightFlipper.activeAngle = -0.4;
+    rightFlipper.minAngle = -0.52; // ~-30 degrees (down-left at rest)
+    rightFlipper.maxAngle = 0.4;   // ~23 degrees (up when active)
+    rightFlipper.restAngle = -0.52;
+    rightFlipper.activeAngle = 0.4;
     scene.matter.body.setAngle(rightFlipper, rightFlipper.restAngle);
 
     // ===== CREATE BUMPERS (BRIGHT RED) =====
@@ -461,16 +480,25 @@ function create() {
 function update(time, delta) {
     if (!currentScene) return;
 
-    // ===== FLIPPER PHYSICS - Apply torque and clamp angles =====
+    // ===== FLIPPER PHYSICS - Smart torque application =====
+    const flipperStrength = 0.8;
+    const angleThreshold = 0.05; // Stop applying force when within 0.05 rad of target
+
     if (leftFlipper) {
-        // Apply torque when active, return to rest when not
-        if (leftFlipper.isActive) {
-            currentScene.matter.body.setAngularVelocity(leftFlipper, 0.6);
+        const targetAngle = leftFlipper.isActive ? leftFlipper.maxAngle : leftFlipper.minAngle;
+        const angleDiff = targetAngle - leftFlipper.angle;
+
+        // Only apply velocity if we're not at the target angle
+        if (Math.abs(angleDiff) > angleThreshold) {
+            // Apply velocity in direction of target
+            const velocity = angleDiff > 0 ? flipperStrength : -flipperStrength;
+            currentScene.matter.body.setAngularVelocity(leftFlipper, velocity);
         } else {
-            currentScene.matter.body.setAngularVelocity(leftFlipper, -0.5);
+            // At target, stop moving
+            currentScene.matter.body.setAngularVelocity(leftFlipper, 0);
         }
 
-        // Clamp angle to limits
+        // Hard clamp to absolute limits
         if (leftFlipper.angle < leftFlipper.minAngle) {
             currentScene.matter.body.setAngle(leftFlipper, leftFlipper.minAngle);
             currentScene.matter.body.setAngularVelocity(leftFlipper, 0);
@@ -481,14 +509,20 @@ function update(time, delta) {
     }
 
     if (rightFlipper) {
-        // Apply torque when active, return to rest when not
-        if (rightFlipper.isActive) {
-            currentScene.matter.body.setAngularVelocity(rightFlipper, -0.6);
+        const targetAngle = rightFlipper.isActive ? rightFlipper.maxAngle : rightFlipper.minAngle;
+        const angleDiff = targetAngle - rightFlipper.angle;
+
+        // Only apply velocity if we're not at the target angle
+        if (Math.abs(angleDiff) > angleThreshold) {
+            // Apply velocity in direction of target
+            const velocity = angleDiff > 0 ? flipperStrength : -flipperStrength;
+            currentScene.matter.body.setAngularVelocity(rightFlipper, velocity);
         } else {
-            currentScene.matter.body.setAngularVelocity(rightFlipper, 0.5);
+            // At target, stop moving
+            currentScene.matter.body.setAngularVelocity(rightFlipper, 0);
         }
 
-        // Clamp angle to limits
+        // Hard clamp to absolute limits
         if (rightFlipper.angle < rightFlipper.minAngle) {
             currentScene.matter.body.setAngle(rightFlipper, rightFlipper.minAngle);
             currentScene.matter.body.setAngularVelocity(rightFlipper, 0);
