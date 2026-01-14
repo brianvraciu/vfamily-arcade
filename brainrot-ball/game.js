@@ -183,65 +183,127 @@ function create() {
         sounds.init();
     }
 
+    // ===== COLOR PALETTE FOR VISIBILITY =====
+    const COLORS = {
+        wall: 0x333333,        // Dark grey walls
+        flipper: 0xFACC15,     // Bright yellow flippers
+        bumper: 0xFF0000,      // Bright red bumpers
+        ball: 0xFFFFFF,        // White ball
+        target: 0x00FFFF,      // Cyan targets
+        vault: 0xFFD700        // Gold vault
+    };
+
     // ===== CREATE WORLD BOUNDARIES =====
     // Top wall
     scene.matter.add.rectangle(width / 2, -25, width, 50, {
         isStatic: true,
         label: 'wall',
-        friction: 0.1
+        friction: 0.1,
+        render: { fillStyle: COLORS.wall }
     });
 
     // Left wall
     scene.matter.add.rectangle(-25, height / 2, 50, height, {
         isStatic: true,
         label: 'wall',
-        friction: 0.1
+        friction: 0.1,
+        render: { fillStyle: COLORS.wall }
     });
 
-    // Right main wall (stops at plunger lane)
-    scene.matter.add.rectangle(width - 90, height / 2 - 150, 20, height - 300, {
+    // Bottom wall (drain area)
+    scene.matter.add.rectangle(width / 2, height + 25, width, 50, {
         isStatic: true,
         label: 'wall',
-        friction: 0.1
+        friction: 0.1,
+        render: { fillStyle: COLORS.wall }
     });
 
-    // Plunger lane right wall
-    scene.matter.add.rectangle(width - 15, height / 2, 10, height, {
+    // ===== LAUNCH TUNNEL WITH TOP ARCH =====
+    const launchLaneX = width - 50;
+    const archStartY = 150;
+
+    // Launch lane right wall (full height)
+    scene.matter.add.rectangle(width - 20, height / 2, 20, height, {
         isStatic: true,
         label: 'wall',
-        friction: 0.1
+        friction: 0.1,
+        render: { fillStyle: COLORS.wall }
     });
 
-    // Separator between playfield and plunger lane (bottom)
-    scene.matter.add.rectangle(width - 60, height - 80, 80, 20, {
+    // Launch lane left wall (goes up to arch)
+    scene.matter.add.rectangle(width - 80, height / 2 + 100, 20, height - 200, {
         isStatic: true,
         label: 'wall',
-        friction: 0.1
+        friction: 0.1,
+        render: { fillStyle: COLORS.wall }
     });
 
-    // Angled outlane walls at bottom
-    const leftOutlane = scene.matter.add.rectangle(120, height - 80, 200, 20, {
+    // TOP ARCH - Curved transition from launch lane to playfield
+    // Create arch segments that curve left at top
+    const archSegments = [
+        // Start of curve (top of launch lane)
+        { x: width - 80, y: archStartY, w: 20, h: 30, angle: 0 },
+        { x: width - 100, y: archStartY - 20, w: 20, h: 30, angle: -0.3 },
+        { x: width - 130, y: archStartY - 30, w: 20, h: 30, angle: -0.5 },
+        { x: width - 160, y: archStartY - 35, w: 20, h: 30, angle: -0.7 },
+        { x: width - 190, y: archStartY - 30, w: 20, h: 30, angle: -0.9 }
+        // Opening left at end for ball to enter playfield
+    ];
+
+    archSegments.forEach(seg => {
+        scene.matter.add.rectangle(seg.x, seg.y, seg.w, seg.h, {
+            isStatic: true,
+            angle: seg.angle,
+            label: 'wall',
+            friction: 0.1,
+            render: { fillStyle: COLORS.wall }
+        });
+    });
+
+    // Right playfield wall (starts after arch opening)
+    scene.matter.add.rectangle(width - 90, height / 2 + 50, 20, height - 300, {
         isStatic: true,
-        angle: 0.6,
         label: 'wall',
-        friction: 0.3
+        friction: 0.1,
+        render: { fillStyle: COLORS.wall }
     });
 
-    const rightOutlane = scene.matter.add.rectangle(width - 200, height - 80, 200, 20, {
+    // Separator between launch lane and playfield at bottom
+    scene.matter.add.rectangle(width - 50, height - 100, 80, 20, {
         isStatic: true,
-        angle: -0.6,
         label: 'wall',
-        friction: 0.3
+        friction: 0.1,
+        render: { fillStyle: COLORS.wall }
     });
 
-    // ===== CREATE FLIPPERS WITH PROPER CONSTRAINTS =====
+    // ===== OUTLANE WALLS (ANGLED) =====
+    // Left outlane
+    scene.matter.add.rectangle(140, height - 90, 200, 20, {
+        isStatic: true,
+        angle: 0.5,
+        label: 'wall',
+        friction: 0.3,
+        render: { fillStyle: COLORS.wall }
+    });
+
+    // Right outlane
+    scene.matter.add.rectangle(width - 230, height - 90, 200, 20, {
+        isStatic: true,
+        angle: -0.5,
+        label: 'wall',
+        friction: 0.3,
+        render: { fillStyle: COLORS.wall }
+    });
+
+    // ===== CREATE FLIPPERS (CLOSER TOGETHER, ANGLED DOWN) =====
     const flipperWidth = 100;
     const flipperHeight = 20;
     const flipperY = height - 150;
+    const centerX = width / 2 - 30; // Shift slightly left to account for launch lane
 
-    // LEFT FLIPPER
-    const leftFlipperX = 220;
-    const leftPivotX = 180;
+    // LEFT FLIPPER - Positioned closer to center, angled DOWN at rest
+    const leftFlipperX = centerX - 70;
+    const leftPivotX = leftFlipperX - 40;
     const leftPivotY = flipperY;
 
     leftFlipper = scene.matter.add.rectangle(leftFlipperX, flipperY, flipperWidth, flipperHeight, {
@@ -249,16 +311,18 @@ function create() {
         label: 'flipper',
         density: 0.001,
         friction: 0.8,
-        restitution: 0.5,
+        restitution: 0.6,
         collisionFilter: {
             category: 1,
             mask: -1
-        }
+        },
+        render: { fillStyle: COLORS.flipper }
     });
 
     // Pin left flipper with constraint
     const leftPivot = scene.matter.add.circle(leftPivotX, leftPivotY, 5, {
-        isStatic: true
+        isStatic: true,
+        render: { fillStyle: COLORS.wall }
     });
 
     leftFlipperConstraint = scene.matter.add.constraint(leftFlipper, leftPivot, 0, 0.9, {
@@ -267,16 +331,16 @@ function create() {
         damping: 0.1
     });
 
-    // Set angle limits on left flipper
-    leftFlipper.minAngle = -0.8; // ~-45 degrees (down)
-    leftFlipper.maxAngle = 0.3;  // ~17 degrees (up)
-    leftFlipper.restAngle = -0.8;
-    leftFlipper.activeAngle = 0.3;
+    // Set angle limits - REST angle points DOWN (30 degrees down)
+    leftFlipper.minAngle = -0.52; // ~-30 degrees (down-right at rest)
+    leftFlipper.maxAngle = 0.4;   // ~23 degrees (up when active)
+    leftFlipper.restAngle = -0.52;
+    leftFlipper.activeAngle = 0.4;
     scene.matter.body.setAngle(leftFlipper, leftFlipper.restAngle);
 
-    // RIGHT FLIPPER
-    const rightFlipperX = 580;
-    const rightPivotX = 620;
+    // RIGHT FLIPPER - Positioned closer to center, angled DOWN at rest
+    const rightFlipperX = centerX + 70;
+    const rightPivotX = rightFlipperX + 40;
     const rightPivotY = flipperY;
 
     rightFlipper = scene.matter.add.rectangle(rightFlipperX, flipperY, flipperWidth, flipperHeight, {
@@ -284,16 +348,18 @@ function create() {
         label: 'flipper',
         density: 0.001,
         friction: 0.8,
-        restitution: 0.5,
+        restitution: 0.6,
         collisionFilter: {
             category: 1,
             mask: -1
-        }
+        },
+        render: { fillStyle: COLORS.flipper }
     });
 
     // Pin right flipper with constraint
     const rightPivot = scene.matter.add.circle(rightPivotX, rightPivotY, 5, {
-        isStatic: true
+        isStatic: true,
+        render: { fillStyle: COLORS.wall }
     });
 
     rightFlipperConstraint = scene.matter.add.constraint(rightFlipper, rightPivot, 0, 0.9, {
@@ -302,40 +368,41 @@ function create() {
         damping: 0.1
     });
 
-    // Set angle limits on right flipper
-    rightFlipper.minAngle = -0.3; // ~-17 degrees (up)
-    rightFlipper.maxAngle = 0.8;  // ~45 degrees (down)
-    rightFlipper.restAngle = 0.8;
-    rightFlipper.activeAngle = -0.3;
+    // Set angle limits - REST angle points DOWN (30 degrees down)
+    rightFlipper.minAngle = -0.4;  // ~-23 degrees (up when active)
+    rightFlipper.maxAngle = 0.52;  // ~30 degrees (down-left at rest)
+    rightFlipper.restAngle = 0.52;
+    rightFlipper.activeAngle = -0.4;
     scene.matter.body.setAngle(rightFlipper, rightFlipper.restAngle);
 
-    // ===== CREATE BUMPERS =====
+    // ===== CREATE BUMPERS (BRIGHT RED) =====
     bumpers = [];
     const bumperPositions = [
-        { x: 250, y: 250 },
-        { x: 450, y: 250 },
-        { x: 350, y: 400 },
-        { x: 200, y: 550 },
-        { x: 500, y: 550 }
+        { x: 250, y: 280 },
+        { x: 450, y: 280 },
+        { x: 350, y: 420 },
+        { x: 220, y: 550 },
+        { x: 480, y: 550 }
     ];
 
     bumperPositions.forEach(pos => {
         const bumper = scene.matter.add.circle(pos.x, pos.y, 40, {
             isStatic: true,
             restitution: 1.8,
-            label: 'bumper'
+            label: 'bumper',
+            render: { fillStyle: COLORS.bumper }
         });
         bumpers.push(bumper);
     });
 
-    // ===== CREATE TARGETS =====
+    // ===== CREATE TARGETS (CYAN) =====
     targets = [];
     const targetPositions = [
-        { x: 120, y: 180 },
-        { x: 580, y: 180 },
-        { x: 120, y: 380 },
-        { x: 580, y: 380 },
-        { x: 350, y: 120 }
+        { x: 140, y: 200 },
+        { x: 560, y: 200 },
+        { x: 140, y: 400 },
+        { x: 560, y: 400 },
+        { x: 350, y: 150 }
     ];
 
     targetPositions.forEach((pos, index) => {
@@ -343,20 +410,22 @@ function create() {
             isStatic: true,
             label: 'target',
             targetId: index,
-            restitution: 0.5
+            restitution: 0.5,
+            render: { fillStyle: COLORS.target }
         });
         targets.push(target);
     });
 
-    // ===== CREATE VAULT (FANUM TAX) =====
-    vault = scene.matter.add.rectangle(350, 50, 80, 40, {
+    // ===== CREATE VAULT (GOLD - FANUM TAX) =====
+    vault = scene.matter.add.rectangle(350, 60, 80, 40, {
         isStatic: true,
         label: 'vault',
-        restitution: 0.5
+        restitution: 0.5,
+        render: { fillStyle: COLORS.vault }
     });
 
-    // ===== CREATE BALL =====
-    ball = scene.matter.add.circle(width - 45, height - 200, 15, {
+    // ===== CREATE BALL (WHITE) =====
+    ball = scene.matter.add.circle(width - 50, height - 200, 15, {
         restitution: 0.7,
         friction: 0.01,
         frictionAir: 0.005,
@@ -365,7 +434,8 @@ function create() {
         collisionFilter: {
             category: 1,
             mask: -1
-        }
+        },
+        render: { fillStyle: COLORS.ball }
     });
 
     ballLaunched = false;
