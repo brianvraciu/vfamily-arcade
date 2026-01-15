@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Aura Simulator - VFamily Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-100px) scale(1.5); }
+        }
+        .float-up { animation: floatUp 1.5s ease-out forwards; }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.8); }
+            50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.8); }
+        }
+        .pulse-glow { animation: pulse-glow 0.5s ease-in-out infinite; }
+
+        @keyframes wobble {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+        .wobble { animation: wobble 0.5s ease-in-out infinite; }
+
+        @keyframes portal-spin {
+            from { transform: rotate(0deg) scale(1); }
+            to { transform: rotate(360deg) scale(1.1); }
+        }
+        .portal-spin { animation: portal-spin 2s linear infinite; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, #a855f7, #06b6d4); border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-900 via-black to-blue-900 overflow-hidden">
+    <div id="game"></div>
+
+    <script>
+        // Game State
+        const state = {
+            aura: 0,
+            totalAura: 0,
+            aps: 0,
+            ownedUpgrades: {},
+            brainrotLevel: 0,
+            gameOver: false,
+            fanumTaxActive: false,
+            pets: [],
+            lootBoxes: [],
+            gyattMeter: 0,
+            gyattActive: false,
+            portals: [],
+            rizzStacks: 0,
+            floatingTexts: [],
+            twitchChat: [],
+            chaosElements: [],
+            notifications: []
+        };
+
+        const POSITIVE_TERMS = ["Sigma", "W", "Goated", "Rizz God", "Mogged", "Based", "Cooked (Good)"];
+        const NEGATIVE_TERMS = ["L", "Beta", "Cringe", "Fanum Taxed", "Ohio", "Cooked (Bad)"];
+        const EVENTS = ["Grimace Shake Incident", "Glazing", "Aura Debt"];
+        const ALL_TERMS = [...POSITIVE_TERMS, ...NEGATIVE_TERMS, ...EVENTS];
+        const TWITCH_SPAM = ["W", "L", "CAP", "REAL", "SKIBBIDI", "GYATT", "RIZZ", "NO CAP", "FR FR", "SHEESH", "OHIO", "BASED"];
+
+        const UPGRADES = [
+            { id: 1, name: "Skibidi Toilet", cost: 15, aps: 1, emoji: "🚽" },
+            { id: 2, name: "Fries In The Bag", cost: 100, aps: 5, emoji: "🍟" },
+            { id: 3, name: "Fanum Tax", cost: 500, aps: 20, emoji: "💰", special: "tax" },
+            { id: 4, name: "Looksmaxxing Kit", cost: 2000, aps: 50, emoji: "💪" },
+            { id: 5, name: "Alpha Wolf", cost: 10000, aps: 200, emoji: "🐺" },
+            { id: 6, name: "Sigma Pet", cost: 5000, aps: 0, emoji: "🐱", special: "pet", desc: "Click pet for bonus!" },
+            { id: 7, name: "Loot Box Spawner", cost: 3000, aps: 10, emoji: "📦", special: "lootbox", desc: "Click before they vanish!" },
+            { id: 8, name: "Gyatt Meter", cost: 7500, aps: 25, emoji: "🍑", special: "gyatt", desc: "3x click bursts!" },
+            { id: 9, name: "Ohio Portal", cost: 15000, aps: 100, emoji: "🌀", special: "portal", desc: "Massive aura rewards!" },
+            { id: 10, name: "Rizz Aura", cost: 25000, aps: 300, emoji: "💫", special: "rizz", desc: "+50% click value!" },
+        ];
+
+        const PET_TYPES = [
+            { emoji: "🐱", name: "Sigma Cat" },
+            { emoji: "🐕", name: "Alpha Dog" },
+            { emoji: "🐸", name: "Wednesday Frog" },
+            { emoji: "🦊", name: "Firefox" },
+            { emoji: "🐧", name: "Linux Penguin" },
+        ];
+
+        function getClickMultiplier() {
+            let mult = 1;
+            mult += state.rizzStacks * 0.5;
+            if (state.gyattActive) mult *= 3;
+            return mult;
+        }
+
+        function addNotification(text, color = "text-yellow-400") {
+            const id = Date.now() + Math.random();
+            state.notifications.push({ id, text, color });
+            setTimeout(() => {
+                state.notifications = state.notifications.filter(n => n.id !== id);
+                render();
+            }, 3000);
+        }
+
+        function getCost(upgrade) {
+            const owned = state.ownedUpgrades[upgrade.id] || 0;
+            return Math.floor(upgrade.cost * Math.pow(1.15, owned));
+        }
+
+        function buyUpgrade(upgrade) {
+            const cost = getCost(upgrade);
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.ownedUpgrades[upgrade.id] = (state.ownedUpgrades[upgrade.id] || 0) + 1;
+                state.aps += upgrade.aps;
+
+                if (upgrade.special === 'tax') state.fanumTaxActive = true;
+
+                if (upgrade.special === 'pet') {
+                    const petType = PET_TYPES[state.pets.length % PET_TYPES.length];
+                    state.pets.push({
+                        id: Date.now() + Math.random(),
+                        x: Math.random() * 60 + 20,
+                        y: Math.random() * 50 + 25,
+                        dx: (Math.random() - 0.5) * 2,
+                        dy: (Math.random() - 0.5) * 2,
+                        ...petType
+                    });
+                    addNotification("🎉 New pet: " + petType.name + "!", "text-cyan-400");
+                }
+
+                if (upgrade.special === 'rizz') {
+                    state.rizzStacks++;
+                    addNotification("💫 Rizz +" + state.rizzStacks + "! Click +" + (state.rizzStacks * 50) + "%", "text-pink-400");
+                }
+
+                updateBrainrot();
+                render();
+            }
+        }
+
+        function updateBrainrot() {
+            const totalOwned = Object.values(state.ownedUpgrades).reduce((a, b) => a + b, 0);
+            state.brainrotLevel = Math.min(100, totalOwned * 2);
+            if (state.brainrotLevel >= 100) state.gameOver = true;
+        }
+
+        function handleClick(e) {
+            if (state.gameOver) return;
+
+            const rect = document.getElementById('game').getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const multiplier = getClickMultiplier();
+            const gained = Math.floor(1 * multiplier);
+
+            state.aura += gained;
+            state.totalAura += gained;
+
+            const term = ALL_TERMS[Math.floor(Math.random() * ALL_TERMS.length)];
+            const isPositive = POSITIVE_TERMS.includes(term);
+
+            const id = Date.now() + Math.random();
+            state.floatingTexts.push({
+                id, text: "+" + gained + " " + term, x, y,
+                color: isPositive ? 'lime' : 'red'
+            });
+
+            setTimeout(() => {
+                state.floatingTexts = state.floatingTexts.filter(t => t.id !== id);
+                render();
+            }, 1500);
+
+            render();
+        }
+
+        function clickPet(petId) {
+            const bonus = Math.floor(10 + Math.random() * 40);
+            state.aura += bonus;
+            state.totalAura += bonus;
+            addNotification("🐱 Pet bonus: +" + bonus + " Aura!", "text-cyan-400");
+
+            state.pets = state.pets.map(p =>
+                p.id === petId ? { ...p, x: Math.random() * 70 + 10, y: Math.random() * 60 + 20 } : p
+            );
+            render();
+        }
+
+        function clickLootBox(boxId) {
+            const box = state.lootBoxes.find(b => b.id === boxId);
+            if (!box) return;
+
+            let value = box.value;
+            if (box.rarity === 'rare') value *= 2;
+            if (box.rarity === 'legendary') value *= 5;
+
+            state.aura += value;
+            state.totalAura += value;
+            state.lootBoxes = state.lootBoxes.filter(b => b.id !== boxId);
+
+            const rarityText = box.rarity === 'legendary' ? '🌟 LEGENDARY' : box.rarity === 'rare' ? '💎 RARE' : '📦 Common';
+            addNotification(rarityText + ": +" + value + " Aura!",
+                box.rarity === 'legendary' ? 'text-yellow-300' : box.rarity === 'rare' ? 'text-blue-400' : 'text-gray-300');
+            render();
+        }
+
+        function clickPortal(portalId) {
+            const portal = state.portals.find(p => p.id === portalId);
+            if (!portal) return;
+
+            state.aura += portal.value;
+            state.totalAura += portal.value;
+            state.portals = state.portals.filter(p => p.id !== portalId);
+            addNotification("🌀 OHIO BONUS: +" + portal.value + " Aura!", "text-purple-300");
+            render();
+        }
+
+        function render() {
+            const game = document.getElementById('game');
+
+            if (state.gameOver) {
+                game.innerHTML = `
+                    <div class="min-h-screen flex flex-col items-center justify-center bg-black">
+                        <div class="text-center">
+                            <h1 class="text-8xl font-black text-green-500 mb-8 animate-pulse">TOUCH GRASS</h1>
+                            <p class="text-2xl text-gray-400">Brainrot Level: 100%</p>
+                            <p class="text-xl text-gray-500 mt-4">Total Aura: ${state.totalAura.toLocaleString()}</p>
+                            <div class="mt-8 text-6xl animate-bounce">🌱🌿🍃</div>
+                            <button onclick="location.reload()" class="mt-8 px-8 py-4 bg-green-600 text-white rounded-xl font-bold text-xl hover:bg-green-500">
+                                Touch Grass & Restart
+                            </button>
+                            <a href="../index.html" class="block mt-4 text-purple-400 hover:text-purple-300">← Back to Arcade</a>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            game.innerHTML = `
+                <div class="min-h-screen relative overflow-hidden">
+                    <!-- Back Button -->
+                    <a href="../index.html" class="fixed top-2 right-4 z-50 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                        ← Back to Arcade
+                    </a>
+
+                    <!-- Brainrot Bar -->
+                    <div class="fixed top-0 left-0 right-0 z-40 bg-black p-2">
+                        <div class="flex items-center gap-4 max-w-4xl mx-auto">
+                            <span class="text-xl">🧠</span>
+                            <div class="flex-1 h-4 bg-gray-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-red-500 transition-all" style="width: ${state.brainrotLevel}%"></div>
+                            </div>
+                            <span class="text-white font-bold text-sm">${state.brainrotLevel}% BRAINROT</span>
+                        </div>
+                    </div>
+
+                    <!-- Gyatt Meter -->
+                    ${(state.ownedUpgrades[8] || 0) > 0 ? `
+                        <div class="fixed top-12 left-1/2 transform -translate-x-1/2 z-40 w-48">
+                            <div class="bg-black rounded-full p-1 border border-pink-500">
+                                <div class="flex items-center gap-2">
+                                    <span>🍑</span>
+                                    <div class="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                        <div class="h-full ${state.gyattActive ? 'bg-yellow-400' : 'bg-pink-500'}" style="width: ${state.gyattActive ? 100 : state.gyattMeter}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            ${state.gyattActive ? '<div class="text-center text-yellow-300 text-xs font-bold animate-pulse">3x CLICKS!</div>' : ''}
+                        </div>
+                    ` : ''}
+
+                    <!-- Aura Counter -->
+                    <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 text-center">
+                        <div class="bg-black rounded-2xl px-8 py-4 border border-purple-500 ${state.gyattActive ? 'pulse-glow' : ''}">
+                            <div class="flex items-center gap-2 justify-center">
+                                <span class="text-3xl animate-pulse">✨</span>
+                                <span class="text-5xl font-black text-purple-400">${Math.floor(state.aura).toLocaleString()}</span>
+                                <span class="text-3xl animate-pulse">✨</span>
+                            </div>
+                            <div class="text-purple-300 text-lg font-semibold">AURA</div>
+                            <div class="flex items-center justify-center gap-4 text-yellow-400 mt-1">
+                                <span class="text-sm">⚡ ${state.aps} APS</span>
+                                ${state.rizzStacks > 0 ? `<span class="text-sm text-pink-400">💫 ${getClickMultiplier()}x</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications -->
+                    <div class="fixed top-44 left-1/2 transform -translate-x-1/2 z-40 flex flex-col items-center gap-2">
+                        ${state.notifications.map(n => `
+                            <div class="px-4 py-2 bg-black rounded-lg border border-gray-600 font-bold ${n.color}">${n.text}</div>
+                        `).join('')}
+                    </div>
+
+                    <!-- Floating Texts -->
+                    ${state.floatingTexts.map(t => `
+                        <div class="float-up absolute pointer-events-none font-bold text-2xl z-50" style="left:${t.x}px;top:${t.y}px;color:${t.color};text-shadow:2px 2px 4px black">${t.text}</div>
+                    `).join('')}
+
+                    <!-- Pets -->
+                    ${state.pets.map(pet => `
+                        <div onclick="clickPet(${pet.id})" class="absolute z-40 cursor-pointer hover:scale-125 transition-transform" style="left:${pet.x}%;top:${pet.y}%">
+                            <div class="text-5xl wobble">${pet.emoji}</div>
+                            <div class="text-xs text-white text-center bg-black px-2 rounded">${pet.name}</div>
+                        </div>
+                    `).join('')}
+
+                    <!-- Loot Boxes -->
+                    ${state.lootBoxes.map(box => `
+                        <div onclick="clickLootBox(${box.id})" class="absolute z-40 cursor-pointer hover:scale-110 transition-transform ${box.rarity === 'legendary' ? 'animate-pulse' : ''}" style="left:${box.x}%;top:${box.y}%">
+                            <div class="text-5xl ${box.timeLeft < 3 ? 'animate-ping' : ''}">${box.rarity === 'legendary' ? '🌟' : box.rarity === 'rare' ? '💎' : '📦'}</div>
+                            <div class="text-xs text-center px-2 rounded font-bold ${box.rarity === 'legendary' ? 'bg-yellow-500 text-black' : box.rarity === 'rare' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white'}">${box.timeLeft.toFixed(1)}s</div>
+                        </div>
+                    `).join('')}
+
+                    <!-- Portals -->
+                    ${state.portals.map(p => `
+                        <div onclick="clickPortal(${p.id})" class="absolute z-40 cursor-pointer" style="left:${p.x}%;top:${p.y}%">
+                            <div class="text-7xl portal-spin">🌀</div>
+                            <div class="text-center">
+                                <div class="text-purple-300 font-bold text-sm">OHIO PORTAL</div>
+                                <div class="text-yellow-400 text-xs">+${p.value}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+
+                    <!-- MEW Button -->
+                    <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+                        <button id="mewBtn" class="relative w-48 h-48 rounded-full bg-gradient-to-br from-purple-600 via-pink-500 to-cyan-400 hover:from-purple-500 hover:via-pink-400 hover:to-cyan-300 transition-all hover:scale-110 active:scale-95 shadow-2xl ${state.gyattActive ? 'pulse-glow' : ''}">
+                            <div class="absolute inset-2 rounded-full bg-gradient-to-br from-purple-900 to-black flex items-center justify-center">
+                                <div class="text-center">
+                                    <span class="text-5xl font-black text-purple-400">MEW</span>
+                                    <div class="text-purple-300 text-xs mt-1">click for aura</div>
+                                    ${state.gyattActive ? '<div class="text-yellow-300 text-xs font-bold">3x ACTIVE!</div>' : ''}
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Shop -->
+                    <div class="fixed left-4 top-32 w-72 z-30 bg-black rounded-xl border border-cyan-500 overflow-hidden">
+                        <div class="bg-gradient-to-r from-cyan-900 to-purple-900 px-4 py-3 border-b border-cyan-500">
+                            <div class="flex items-center gap-2">
+                                <span>🛒</span>
+                                <span class="text-white font-bold">BRAINROT SHOP</span>
+                            </div>
+                        </div>
+                        <div class="p-2 space-y-2 max-h-[50vh] overflow-y-auto scrollbar-thin">
+                            ${UPGRADES.map(u => {
+                                const cost = getCost(u);
+                                const affordable = state.aura >= cost;
+                                const owned = state.ownedUpgrades[u.id] || 0;
+                                return `
+                                    <button onclick="buyUpgrade(UPGRADES[${UPGRADES.indexOf(u)}])" ${!affordable ? 'disabled' : ''} class="w-full p-2 rounded-lg border text-left ${affordable ? 'bg-gradient-to-r from-purple-900 to-cyan-900 border-purple-500 hover:border-purple-400 cursor-pointer' : 'bg-gray-900 border-gray-700 opacity-60 cursor-not-allowed'}">
+                                        <div class="flex items-center gap-2">
+                                            <div class="text-2xl">${u.emoji}</div>
+                                            <div class="flex-1">
+                                                <div class="font-bold text-sm ${affordable ? 'text-white' : 'text-gray-400'}">${u.name}</div>
+                                                <div class="text-xs ${affordable ? 'text-yellow-400' : 'text-gray-500'}">⚡+${u.aps} APS</div>
+                                                ${u.desc ? `<div class="text-xs text-gray-400">${u.desc}</div>` : ''}
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="font-bold text-sm ${affordable ? 'text-green-400' : 'text-red-400'}">${cost.toLocaleString()}</div>
+                                                <div class="text-xs text-purple-400">x${owned}</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Twitch Chat -->
+                    <div class="fixed right-4 top-32 bottom-4 w-56 z-30 bg-black rounded-lg border border-purple-500 overflow-hidden flex flex-col">
+                        <div class="bg-purple-900 px-4 py-2 border-b border-purple-500">
+                            <span class="text-white font-bold text-sm">💬 CHAT</span>
+                            <span class="text-gray-400 text-xs ml-2">(REAL)</span>
+                        </div>
+                        <div class="flex-1 overflow-hidden p-2">
+                            <div class="space-y-1">
+                                ${state.twitchChat.slice(-12).map(msg => `
+                                    <div class="text-xs"><span style="color:${msg.color}" class="font-bold">${msg.user}:</span> <span class="text-white">${msg.text}</span></div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('mewBtn').addEventListener('click', handleClick);
+        }
+
+        // Game loops
+        setInterval(() => {
+            if (state.gameOver) return;
+            if (state.aps > 0) {
+                state.aura += state.aps;
+                state.totalAura += state.aps;
+                render();
+            }
+        }, 1000);
+
+        setInterval(() => {
+            if (state.gameOver) return;
+            state.twitchChat.push({
+                id: Date.now(),
+                text: TWITCH_SPAM[Math.floor(Math.random() * TWITCH_SPAM.length)],
+                user: "user" + Math.floor(Math.random() * 9999),
+                color: `hsl(${Math.random() * 360}, 70%, 60%)`
+            });
+            state.twitchChat = state.twitchChat.slice(-20);
+            render();
+        }, 400);
+
+        // Pet movement
+        setInterval(() => {
+            if (state.pets.length === 0) return;
+            state.pets = state.pets.map(pet => {
+                let x = pet.x + pet.dx * 0.3;
+                let y = pet.y + pet.dy * 0.3;
+                let dx = pet.dx;
+                let dy = pet.dy;
+                if (x < 5 || x > 70) dx = -dx;
+                if (y < 20 || y > 80) dy = -dy;
+                if (Math.random() < 0.02) {
+                    dx = (Math.random() - 0.5) * 2;
+                    dy = (Math.random() - 0.5) * 2;
+                }
+                return { ...pet, x: Math.max(5, Math.min(70, x)), y: Math.max(20, Math.min(80, y)), dx, dy };
+            });
+            render();
+        }, 100);
+
+        // Loot box spawner
+        setInterval(() => {
+            const count = state.ownedUpgrades[7] || 0;
+            if (count === 0 || state.gameOver) return;
+            if (Math.random() < 0.15 * count) {
+                const id = Date.now() + Math.random();
+                state.lootBoxes.push({
+                    id, x: Math.random() * 50 + 20, y: Math.random() * 40 + 30,
+                    value: Math.floor(50 + Math.random() * 200 * count),
+                    timeLeft: 10,
+                    rarity: Math.random() < 0.1 ? 'legendary' : Math.random() < 0.3 ? 'rare' : 'common'
+                });
+                setTimeout(() => {
+                    state.lootBoxes = state.lootBoxes.filter(b => b.id !== id);
+                    render();
+                }, 10000);
+                render();
+            }
+        }, 2000);
+
+        // Loot box countdown
+        setInterval(() => {
+            if (state.lootBoxes.length === 0) return;
+            state.lootBoxes = state.lootBoxes.map(b => ({ ...b, timeLeft: Math.max(0, b.timeLeft - 0.1) }));
+            render();
+        }, 100);
+
+        // Gyatt meter
+        setInterval(() => {
+            const count = state.ownedUpgrades[8] || 0;
+            if (count === 0 || state.gameOver || state.gyattActive) return;
+            state.gyattMeter += count;
+            if (state.gyattMeter >= 100) {
+                state.gyattActive = true;
+                state.gyattMeter = 0;
+                addNotification("🍑 GYATT BURST! 3x CLICKS! 🍑", "text-pink-400");
+                setTimeout(() => {
+                    state.gyattActive = false;
+                    render();
+                }, 5000);
+            }
+            render();
+        }, 1000);
+
+        // Ohio portals
+        setInterval(() => {
+            const count = state.ownedUpgrades[9] || 0;
+            if (count === 0 || state.gameOver) return;
+            if (Math.random() < 0.08 * count) {
+                const id = Date.now() + Math.random();
+                state.portals.push({
+                    id, x: Math.random() * 50 + 20, y: Math.random() * 40 + 30,
+                    value: Math.floor(500 + Math.random() * 1000 * count)
+                });
+                addNotification("🌀 OHIO PORTAL OPENED! 🌀", "text-purple-400");
+                setTimeout(() => {
+                    state.portals = state.portals.filter(p => p.id !== id);
+                    render();
+                }, 5000);
+                render();
+            }
+        }, 5000);
+
+        // Fanum Tax
+        setInterval(() => {
+            if (!state.fanumTaxActive || state.gameOver) return;
+            const stolen = Math.floor(state.aura * 0.05);
+            if (stolen > 0) {
+                state.aura -= stolen;
+                addNotification("💰 FANUM TAXED: -" + stolen, "text-red-400");
+                render();
+            }
+        }, 60000);
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
